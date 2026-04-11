@@ -3,6 +3,8 @@
 import type { Analysis } from "@prisma/client";
 import Link from "next/link";
 
+import type { Route } from "next";
+
 export function AnalysisHistoryList({
   analysis,
 }: {
@@ -69,7 +71,7 @@ export function AnalysisHistoryList({
 
         {/* Analysis card - latest (highlighted) */}
         <Link
-          href={`/analysis/${analysis.id}`}
+          href={`/analysis/${analysis.id}` as Route}
           className="group block rounded-lg border border-accent-gold/20 bg-accent-gold/5 p-5 transition-all hover:-translate-y-0.5 hover:border-accent-gold/40 hover:shadow-lg"
         >
           <div className="flex items-center justify-between">

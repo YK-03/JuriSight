@@ -4,6 +4,7 @@ import { RunAnalysisButton } from "../../../components/app/RunAnalysisButton";
 import { BailApplicationGenerator } from "../../../components/app/BailApplicationGenerator";
 import { Button } from "../../../components/ui/button";
 import Link from "next/link";
+import type { Route } from "next";
 
 export function CaseActions({
   caseId,
@@ -22,7 +23,7 @@ export function CaseActions({
       {/* View latest analysis */}
       {hasAnalysis && analysisId && (
         <Button asChild variant="outline">
-          <Link href={`/analysis/${analysisId}`}>View Latest Analysis</Link>
+          <Link href={`/analysis/${analysisId}` as Route}>View Latest Analysis</Link>
         </Button>
       )}
 

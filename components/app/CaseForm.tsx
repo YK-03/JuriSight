@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -108,7 +109,7 @@ export function CaseForm() {
       }
 
       const data = (await res.json()) as { id: string };
-      router.push(`/cases/${data.id}`);
+      router.push(`/cases/${data.id}` as Route);
       router.refresh();
     });
   };

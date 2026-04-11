@@ -19,7 +19,6 @@ export const translations = {
     analyzingCase: "Analyzing case...",
     noAnalysis: "No analysis yet",
     authorities: "Authorities",
-    quickCheck: "Quick Check",
     seeHowItWorks: "See How It Works",
   },
   hi: {
@@ -42,7 +41,6 @@ export const translations = {
     analyzingCase: "\u092E\u093E\u092E\u0932\u0947 \u0915\u093E \u0935\u093F\u0936\u094D\u0932\u0947\u0937\u0923 \u0939\u094B \u0930\u0939\u093E \u0939\u0948...",
     noAnalysis: "\u0905\u092D\u0940 \u0924\u0915 \u0915\u094B\u0908 \u0935\u093F\u0936\u094D\u0932\u0947\u0937\u0923 \u0928\u0939\u0940\u0902",
     authorities: "\u0905\u0927\u093F\u0915\u093E\u0930\u093F\u0924\u093E\u090F\u0902",
-    quickCheck: "\u0924\u094D\u0935\u0930\u093F\u0924 \u091C\u093E\u0902\u091A",
     seeHowItWorks: "\u0921\u0947\u092E\u094B \u0926\u0947\u0916\u0947\u0902",
   },
 } as const;

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Merriweather_Sans } from "next/font/google";
-import Script from "next/script";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "../components/app/Providers";
 import "./globals.css";
@@ -42,20 +41,21 @@ export default function RootLayout({
   `;
 
   return (
-    <ClerkProvider
-      afterSignOutUrl="/"
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-    >
-      <html lang="en" suppressHydrationWarning>
-        <head />
-        <body className={`${brand.variable} bg-bg-primary font-body text-text-primary antialiased`}>
-          <Script id="theme-init" strategy="beforeInteractive">
-            {themeInit}
-          </Script>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: themeInit }}
+        />
+      </head>
+      <body className={`${brand.variable} bg-bg-primary font-body text-text-primary antialiased`}>
+        <ClerkProvider
+          afterSignOutUrl="/"
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+        >
           <Providers>{children}</Providers>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

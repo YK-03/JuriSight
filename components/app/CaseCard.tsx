@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import type { Route } from "next";
 import type { CaseWithAnalysis } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,7 @@ export function CaseCard({ data }: { data: CaseWithAnalysis }) {
         </p>
         <div className="flex items-center justify-between">
           <span className="text-xs text-text-secondary">{new Date(data.createdAt).toLocaleDateString()}</span>
-          <Link href={`/cases/${data.id}`} className="text-sm text-accent-gold hover:underline">
+          <Link href={`/cases/${data.id}` as Route} className="text-sm text-accent-gold hover:underline">
             View Case
           </Link>
         </div>

@@ -1,80 +1,110 @@
 import { NextResponse } from "next/server";
-import { getOrCreateUser } from "@/lib/user-sync";
-import { z } from "zod";
-import db from "@/lib/db";
-import { generateBailAnalysis } from "@/lib/ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AnalyzeRequest, CaseAnalysis } from "@/lib/analysis-types";
 
-const AnalyzeSchema = z.object({
-  caseId: z.string().cuid(),
-});
+export const runtime = "nodejs";
+
+const systemPrompt = `You are JuriSight, an expert Indian legal analysis AI with deep knowledge of IPC, CrPC, BNS 2023, constitutional law, and Supreme Court / High Court precedents.
+
+Analyse the case description provided and respond ONLY with a valid JSON object — no markdown, no explanation, no preamble. The JSON must exactly match this TypeScript interface:
+
+{
+  "verdict": "Favorable" | "Unfavorable" | "Mixed",
+  "riskScore": number,          // 0 = no risk, 100 = extreme risk
+  "summary": string,            // 2-3 sentences, plain English
+  "riskFactors": [
+    {
+      "label": string,
+      "severity": "High" | "Medium" | "Low",
+      "description": string       // 1 sentence
+    }
+  ],
+  "legalReasoning": string,     // 3-5 paragraphs, cite specific sections
+  "applicableSections": [
+    {
+      "code": string,             // e.g. "IPC 420", "BNS 316"
+      "title": string,
+      "relevance": string         // 1 sentence
+    }
+  ],
+  "precedents": [
+    {
+      "case": string,
+      "citation": string,         // year + court abbreviation
+      "relevance": string         // 1 sentence
+    }
+  ],
+  "recommendations": string[],  // 3-5 actionable items
+  "biasWarning": string | null  // flag if caste/religion/gender bias risk
+}
+
+Return only the JSON object. Nothing before or after it.`;
+
+
 
 export async function POST(req: Request) {
-  const user = await getOrCreateUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = user.id;
-
   try {
-    const { caseId } = AnalyzeSchema.parse(await req.json());
+    const body: AnalyzeRequest = await req.json();
+    const caseDescription = body.caseDescription;
 
-    const caseData = await db.case.findFirst({
-      where: { id: caseId, userId },
-    });
-
-    if (!caseData) return NextResponse.json({ error: "Case not found" }, { status: 404 });
-
-    const analysis = await generateBailAnalysis(caseData);
-
-    const upserted = await db.analysis.upsert({
-      where: { caseId: caseData.id },
-      update: {
-        eligibilityStatus: analysis.eligibilityStatus,
-        confidenceLevel: analysis.confidenceLevel,
-        confidenceExplanation: analysis.confidenceExplanation,
-        riskScore: analysis.riskScore,
-        reasoning: analysis.reasoning,
-        riskFactors: analysis.riskFactors,
-        legalBasis: analysis.legalBasis,
-        flightRisk: analysis.riskFactors.flightRisk,
-        offenseSeverity: analysis.riskFactors.offenseSeverity,
-        recommendation: analysis.recommendation,
-        applicableSections: analysis.legalBasis.applicableSections,
-        positiveFactors: analysis.positiveFactors,
-        negativeFactors: analysis.negativeFactors,
-        suggestedConditions: analysis.suggestedConditions,
-        biasWarning: analysis.biasWarning,
-      },
-      create: {
-        caseId: caseData.id,
-        eligibilityStatus: analysis.eligibilityStatus,
-        confidenceLevel: analysis.confidenceLevel,
-        confidenceExplanation: analysis.confidenceExplanation,
-        riskScore: analysis.riskScore,
-        reasoning: analysis.reasoning,
-        riskFactors: analysis.riskFactors,
-        legalBasis: analysis.legalBasis,
-        flightRisk: analysis.riskFactors.flightRisk,
-        offenseSeverity: analysis.riskFactors.offenseSeverity,
-        recommendation: analysis.recommendation,
-        applicableSections: analysis.legalBasis.applicableSections,
-        positiveFactors: analysis.positiveFactors,
-        negativeFactors: analysis.negativeFactors,
-        suggestedConditions: analysis.suggestedConditions,
-        biasWarning: analysis.biasWarning,
-      },
-    });
-
-    await db.case.update({
-      where: { id: caseData.id },
-      data: { status: "ANALYZED" },
-    });
-
-    return NextResponse.json(upserted);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid request", details: error.flatten() }, { status: 400 });
+    if (!caseDescription || caseDescription.trim().length < 20) {
+      return NextResponse.json({ error: "Case description must be at least 20 characters long." }, { status: 400 });
     }
-    return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
+
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: "Gemini API key not configured." }, { status: 500 });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY is missing in environment" }),
+        { status: 500 }
+      );
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.3,
+      },
+    });
+
+    const result = await model.generateContent(caseDescription);
+    const responseText = result.response.text();
+
+    let cleanJsonText = responseText.trim();
+    if (cleanJsonText.startsWith("\`\`\`json")) {
+      cleanJsonText = cleanJsonText.replace(/^\`\`\`json\s*/i, "");
+    }
+    if (cleanJsonText.startsWith("\`\`\`")) {
+      cleanJsonText = cleanJsonText.replace(/^\`\`\`\s*/, "");
+    }
+    if (cleanJsonText.endsWith("\`\`\`")) {
+      cleanJsonText = cleanJsonText.replace(/\s*\`\`\`$/, "");
+    }
+
+    let analysis: CaseAnalysis;
+
+    try {
+      analysis = JSON.parse(cleanJsonText);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", cleanJsonText);
+
+      return NextResponse.json(
+        { error: "Model returned invalid JSON format." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ analysis });
+  } catch (error: any) {
+    console.error("Analysis Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to analyze case description." }, { status: 500 });
   }
 }

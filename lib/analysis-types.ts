@@ -86,3 +86,41 @@ export function mapPrismaAnalysis(a: Analysis): AnalysisView {
     createdAt: a.createdAt.toISOString(),
   };
 }
+
+/* ── new analysis flow types ────────────────────────────────────────── */
+
+export type Severity = "High" | "Medium" | "Low";
+export type Verdict = "Favorable" | "Unfavorable" | "Mixed";
+
+export interface CaseAnalysis {
+  verdict: Verdict;
+  riskScore: number;
+  summary: string;
+  riskFactors: Array<{
+    label: string;
+    severity: Severity;
+    description: string;
+  }>;
+  legalReasoning: string;
+  applicableSections: Array<{
+    code: string;
+    title: string;
+    relevance: string;
+  }>;
+  precedents: Array<{
+    case: string;
+    citation: string;
+    relevance: string;
+  }>;
+  recommendations: string[];
+  biasWarning: string | null;
+}
+
+export interface AnalyzeRequest {
+  caseDescription: string;
+}
+
+export interface AnalyzeResponse {
+  analysis?: CaseAnalysis;
+  error?: string;
+}

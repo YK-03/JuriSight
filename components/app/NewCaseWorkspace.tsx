@@ -141,11 +141,7 @@ function OutputCard({ result }: { result: AnalysisResult | null }) {
   } as const;
 
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.24, ease: "easeOut" }}
-      className="h-full"
-    >
+    <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.24, ease: "easeOut" }} className="h-full">
       <div className="rounded-xl border border-neutral-200/10 bg-bg-card/90 p-6 shadow-panel">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -219,7 +215,8 @@ function OutputCard({ result }: { result: AnalysisResult | null }) {
                 Run analysis to see legal insights
               </h3>
               <p className="mt-3 max-w-sm text-sm leading-7 text-text-secondary">
-                Your structured outcome will appear here with eligibility posture, risk scoring, relevant sections, and an AI-style explanation.
+                Your structured outcome will appear here with eligibility posture, risk scoring, relevant sections,
+                and an AI-style explanation.
               </p>
             </motion.div>
           )}
@@ -229,7 +226,7 @@ function OutputCard({ result }: { result: AnalysisResult | null }) {
   );
 }
 
-export default function NewCasePage() {
+export function NewCaseWorkspace({ embedded = false }: { embedded?: boolean }) {
   const [form, setForm] = useState<FormState>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -288,149 +285,145 @@ export default function NewCasePage() {
     setLoading(false);
   };
 
-  return (
-    <main className="grid-noise min-h-screen text-text-primary">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="mx-auto max-w-6xl px-6 py-8"
-      >
-        <motion.section variants={itemVariants} className="mb-8">
-          <div className="rounded-xl border border-neutral-200/10 bg-bg-card/75 px-6 py-6 shadow-panel backdrop-blur-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-2">
-                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent-gold">
-                  Case Analysis Workspace
-                </p>
-                <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-                  New Case Analysis
-                </h1>
-                <p className="max-w-2xl text-base leading-7 text-text-secondary">
-                  Input case facts on the left and review a live AI-style legal output panel on the right.
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200/10 bg-bg-secondary/45 px-4 py-2 text-sm text-text-secondary">
-                <ShieldAlert className="h-4 w-4 text-accent-gold" />
-                Internal review only
-              </div>
+  const content = (
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="mx-auto max-w-6xl px-6 py-8">
+      <motion.section variants={itemVariants} className="mb-8">
+        <div className="rounded-xl border border-neutral-200/10 bg-bg-card/75 px-6 py-6 shadow-panel backdrop-blur-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent-gold">
+                Case Analysis Workspace
+              </p>
+              <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+                New Case Analysis
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-text-secondary">
+                Input case facts on the left and review a live AI-style legal output panel on the right.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200/10 bg-bg-secondary/45 px-4 py-2 text-sm text-text-secondary">
+              <ShieldAlert className="h-4 w-4 text-accent-gold" />
+              Internal review only
             </div>
           </div>
-        </motion.section>
+        </div>
+      </motion.section>
 
-        <motion.section
-          variants={itemVariants}
-          className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(22rem,1fr)]"
+      <motion.section variants={itemVariants} className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(22rem,1fr)]">
+        <motion.div
+          whileHover={{ y: -4 }}
+          transition={{ duration: 0.24, ease: "easeOut" }}
+          className="rounded-xl border border-neutral-200/10 bg-bg-card/90 p-6 shadow-panel"
         >
-          <motion.div
-            whileHover={{ y: -4 }}
-            transition={{ duration: 0.24, ease: "easeOut" }}
-            className="rounded-xl border border-neutral-200/10 bg-bg-card/90 p-6 shadow-panel"
-          >
-            <div className="space-y-2">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent-gold">
-                Input Form
-              </p>
-              <h2 className="font-display text-2xl font-semibold tracking-tight text-text-primary">
-                Enter case details
-              </h2>
+          <div className="space-y-2">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent-gold">
+              Input Form
+            </p>
+            <h2 className="font-display text-2xl font-semibold tracking-tight text-text-primary">
+              Enter case details
+            </h2>
+          </div>
+
+          <div className="mt-8 space-y-5">
+            <FormField label="Case Title">
+              <input
+                value={form.title}
+                onChange={(event) => updateField("title", event.target.value)}
+                placeholder="State vs. Example Matter"
+                className="h-12 w-full rounded-xl border border-neutral-200/10 bg-bg-card px-4 text-sm text-text-primary shadow-panel outline-none transition-all duration-300 placeholder:text-text-secondary/70 focus:border-accent-gold/40"
+              />
+            </FormField>
+
+            <FormField label="Description">
+              <textarea
+                value={form.description}
+                onChange={(event) => updateField("description", event.target.value)}
+                rows={6}
+                placeholder="Summarize the allegation, procedural posture, and any relevant custody context."
+                className="w-full rounded-xl border border-neutral-200/10 bg-bg-card px-4 py-3 text-sm leading-7 text-text-primary shadow-panel outline-none transition-all duration-300 placeholder:text-text-secondary/70 focus:border-accent-gold/40"
+              />
+            </FormField>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <SelectField
+                label="Offense Type"
+                value={form.offenseType}
+                options={["Theft", "Assault", "Fraud", "Other"]}
+                onChange={(value) => updateField("offenseType", value as OffenseType)}
+              />
+              <SelectField
+                label="Prior Criminal Record"
+                value={form.criminalRecord}
+                options={["None", "Minor", "Serious"]}
+                onChange={(value) => updateField("criminalRecord", value as CriminalRecord)}
+              />
             </div>
 
-            <div className="mt-8 space-y-5">
-              <FormField label="Case Title">
+            <div className="grid gap-5 md:grid-cols-2">
+              <SelectField
+                label="Cooperation Level"
+                value={form.cooperationLevel}
+                options={["Fully Cooperative", "Partial", "Non-cooperative"]}
+                onChange={(value) => updateField("cooperationLevel", value as CooperationLevel)}
+              />
+              <FormField label="Time Served (months)">
                 <input
-                  value={form.title}
-                  onChange={(event) => updateField("title", event.target.value)}
-                  placeholder="State vs. Example Matter"
+                  type="number"
+                  min="0"
+                  value={form.timeServed}
+                  onChange={(event) =>
+                    updateField("timeServed", event.target.value === "" ? "" : Number(event.target.value))
+                  }
+                  placeholder="0"
                   className="h-12 w-full rounded-xl border border-neutral-200/10 bg-bg-card px-4 text-sm text-text-primary shadow-panel outline-none transition-all duration-300 placeholder:text-text-secondary/70 focus:border-accent-gold/40"
                 />
               </FormField>
-
-              <FormField label="Description">
-                <textarea
-                  value={form.description}
-                  onChange={(event) => updateField("description", event.target.value)}
-                  rows={6}
-                  placeholder="Summarize the allegation, procedural posture, and any relevant custody context."
-                  className="w-full rounded-xl border border-neutral-200/10 bg-bg-card px-4 py-3 text-sm leading-7 text-text-primary shadow-panel outline-none transition-all duration-300 placeholder:text-text-secondary/70 focus:border-accent-gold/40"
-                />
-              </FormField>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <SelectField
-                  label="Offense Type"
-                  value={form.offenseType}
-                  options={["Theft", "Assault", "Fraud", "Other"]}
-                  onChange={(value) => updateField("offenseType", value as OffenseType)}
-                />
-                <SelectField
-                  label="Prior Criminal Record"
-                  value={form.criminalRecord}
-                  options={["None", "Minor", "Serious"]}
-                  onChange={(value) => updateField("criminalRecord", value as CriminalRecord)}
-                />
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <SelectField
-                  label="Cooperation Level"
-                  value={form.cooperationLevel}
-                  options={["Fully Cooperative", "Partial", "Non-cooperative"]}
-                  onChange={(value) => updateField("cooperationLevel", value as CooperationLevel)}
-                />
-                <FormField label="Time Served (months)">
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.timeServed}
-                    onChange={(event) =>
-                      updateField("timeServed", event.target.value === "" ? "" : Number(event.target.value))
-                    }
-                    placeholder="0"
-                    className="h-12 w-full rounded-xl border border-neutral-200/10 bg-bg-card px-4 text-sm text-text-primary shadow-panel outline-none transition-all duration-300 placeholder:text-text-secondary/70 focus:border-accent-gold/40"
-                  />
-                </FormField>
-              </div>
-
-              <motion.button
-                type="button"
-                whileHover={{ y: -2, scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                onClick={handleAnalyze}
-                disabled={loading}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-accent-gold/70 bg-accent-gold px-5 font-medium text-bg-primary transition-all duration-300 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-80"
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={loading ? "loading" : "idle"}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.18 }}
-                    className="inline-flex items-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-bg-primary/40 border-t-bg-primary" />
-                        Analyzing Case...
-                      </>
-                    ) : (
-                      <>
-                        Analyze Case
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </motion.span>
-                </AnimatePresence>
-              </motion.button>
             </div>
-          </motion.div>
 
-          <div className="xl:sticky xl:top-8 xl:self-start">
-            <OutputCard result={result} />
+            <motion.button
+              type="button"
+              whileHover={{ y: -2, scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={handleAnalyze}
+              disabled={loading}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-accent-gold/70 bg-accent-gold px-5 font-medium text-bg-primary transition-all duration-300 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-80"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={loading ? "loading" : "idle"}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  className="inline-flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-bg-primary/40 border-t-bg-primary" />
+                      Analyzing Case...
+                    </>
+                  ) : (
+                    <>
+                      Analyze Case
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </motion.span>
+              </AnimatePresence>
+            </motion.button>
           </div>
-        </motion.section>
-      </motion.div>
-    </main>
+        </motion.div>
+
+        <div className="xl:sticky xl:top-8 xl:self-start">
+          <OutputCard result={result} />
+        </div>
+      </motion.section>
+    </motion.div>
   );
+
+  if (embedded) {
+    return <div className="text-text-primary">{content}</div>;
+  }
+
+  return <main className="grid-noise min-h-screen text-text-primary">{content}</main>;
 }
