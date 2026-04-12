@@ -42,6 +42,10 @@ type CaseHistoryEntry = {
   status: CaseHistoryStatus;
 };
 
+type CreatedCaseResponse = {
+  id: string;
+};
+
 function createCaseHistoryId() {
   return `case-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -102,13 +106,13 @@ function buildCaseHistoryStatus(data: AnalyzeResponse): CaseHistoryStatus {
   return "In progress";
 }
 
-function saveCaseHistoryEntry(form: IntakeFormState, data: AnalyzeResponse) {
+function saveCaseHistoryEntry(form: IntakeFormState, data: AnalyzeResponse, caseId?: string | null) {
   if (typeof window === "undefined") {
     return;
   }
 
   const nextEntry: CaseHistoryEntry = {
-    id: createCaseHistoryId(),
+    id: caseId || createCaseHistoryId(),
     caseTitle: form.caseTitle.trim() || form.whatHappened.trim().slice(0, 60) || "Untitled case",
     summary: buildCaseHistorySummary(data),
     createdAt: new Date().toISOString(),
@@ -140,6 +144,25 @@ function buildCaseDescription(values: IntakeFormState): string {
   ];
 
   return sections.filter(Boolean).join("\n\n");
+}
+
+function buildCasePayload(values: IntakeFormState) {
+  const normalizedTitle =
+    values.caseTitle.trim() || values.whatHappened.trim().slice(0, 60) || "Untitled case";
+
+  return {
+    title: normalizedTitle,
+    accusedName: values.partiesInvolved.trim() || "Not specified",
+    section: values.legalQuestions.trim() || "Pending analysis",
+    offenseType: values.caseTitle.trim() || "General legal matter",
+    accusedProfile: values.partiesInvolved.trim() || "Not specified",
+    priorRecord: false,
+    offenseDescription: values.whatHappened.trim(),
+    cooperationLevel: values.proceduralStage.trim() || "Not specified",
+    jurisdiction: values.incidentLocation.trim() || "Not specified",
+    legalFramework: values.legalQuestions.trim() || undefined,
+    specialAct: undefined,
+  };
 }
 
 function AnalyzeIntakeContent() {
@@ -197,10 +220,27 @@ function AnalyzeIntakeContent() {
     });
 
     try {
+      let caseId: string | null = null;
+
+      try {
+        const caseResponse = await fetch("/api/cases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildCasePayload({ ...form, whatHappened: trimmedNarrative })),
+        });
+
+        if (caseResponse.ok) {
+          const createdCase: CreatedCaseResponse = await caseResponse.json();
+          caseId = typeof createdCase.id === "string" ? createdCase.id : null;
+        }
+      } catch {
+        caseId = null;
+      }
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseDescription }),
+        body: JSON.stringify({ caseDescription, caseId }),
       });
 
       const data: AnalyzeResponse = await response.json();
@@ -212,11 +252,12 @@ function AnalyzeIntakeContent() {
       sessionStorage.setItem(
         "jurisight_analysis",
         JSON.stringify({
+          caseId,
           caseDescription,
           analysis: data.analysis,
         }),
       );
-      saveCaseHistoryEntry(form, data);
+      saveCaseHistoryEntry(form, data, caseId);
 
       router.push("/dashboard/analysis");
     } catch (submissionError) {

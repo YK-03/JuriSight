@@ -117,7 +117,8 @@ export interface CaseAnalysis {
 }
 
 export interface AnalyzeRequest {
-  caseDescription: string;
+  caseDescription?: string;
+  caseId?: string;
 }
 
 export interface AnalyzeResponse {

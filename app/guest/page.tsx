@@ -1,381 +1,459 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Badge } from "../../components/ui/badge";
+import { useUser } from "@clerk/nextjs";
+import { useState } from "react";
 
-type GuestFormData = {
-  section: string;
+type GuestEligibilityRequest = {
+  crpcSection: string;
   offenseType: string;
   accusedProfile: string;
   priorRecord: string;
   cooperationLevel: string;
-  offenseDescription: string;
+  description: string;
 };
 
-type GuestAnalysisResult = {
-  eligibilityStatus: "LIKELY_ELIGIBLE" | "LIKELY_INELIGIBLE" | "BORDERLINE";
+type RiskSeverity = "HIGH" | "MEDIUM" | "LOW";
+type Verdict = "Bailable" | "Non-Bailable" | "Conditional Bail (Discretionary)";
+
+type GuestEligibilityResult = {
+  verdict: Verdict;
   riskScore: number;
-  reasoning: string;
-  riskFactors: {
-    flightRisk: "LOW" | "MEDIUM" | "HIGH";
-    evidenceTampering: "LOW" | "MEDIUM" | "HIGH";
-    communityTies: "WEAK" | "MODERATE" | "STRONG";
-    offenseSeverity: "LOW" | "MODERATE" | "HIGH" | "SEVERE";
-  };
-  suggestedConditions: string[];
+  crpcSection: string;
+  summary: string;
+  riskFactors: Array<{
+    label: string;
+    severity: RiskSeverity;
+  }>;
+  oneRecommendation: string;
 };
 
-function outcomeMeta(status: GuestAnalysisResult["eligibilityStatus"]) {
-  if (status === "LIKELY_ELIGIBLE") {
-    return { label: "Bail Recommended", color: "text-state-success" };
-  }
-  if (status === "BORDERLINE") {
-    return { label: "Conditional Bail", color: "text-state-warning" };
-  }
-  return { label: "Bail Not Recommended", color: "text-state-error" };
-}
-
-function riskColor(score: number) {
-  if (score <= 3) return "#0E9F6E";
-  if (score <= 6) return "#D97706";
-  return "#DC2626";
-}
-
-const initialFormData: GuestFormData = {
-  section: "S.437 - Non-Bailable Offense",
+const initialFormState: GuestEligibilityRequest = {
+  crpcSection: "Section 436 CrPC - Bailable offense",
   offenseType: "Theft",
-  accusedProfile: "First-time Offender",
-  priorRecord: "None",
-  cooperationLevel: "Fully Cooperative",
-  offenseDescription: "",
+  accusedProfile: "First-time offender with local residence",
+  priorRecord: "No prior criminal record",
+  cooperationLevel: "Fully cooperative with investigation",
+  description: "",
 };
+
+function verdictClasses(verdict: Verdict) {
+  if (verdict === "Bailable") {
+    return "border-green-200 bg-green-50 text-green-700";
+  }
+
+  if (verdict === "Non-Bailable") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function progressClasses(score: number) {
+  if (score <= 40) {
+    return "bg-green-500";
+  }
+
+  if (score <= 70) {
+    return "bg-amber-500";
+  }
+
+  return "bg-red-500";
+}
+
+function severityClasses(severity: RiskSeverity) {
+  if (severity === "HIGH") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (severity === "MEDIUM") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  return "border-green-200 bg-green-50 text-green-700";
+}
+
+function Spinner() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 animate-spin"
+      fill="none"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        className="stroke-current opacity-20"
+        strokeWidth="3"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        className="stroke-current"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill="none"
+    >
+      <path
+        d="M4.167 10h11.666M10.833 5l5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function GuestPage() {
-  const [formData, setFormData] = useState<GuestFormData>(initialFormData);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<GuestAnalysisResult | null>(null);
-  const [error, setError] = useState("");
-  const [readMore, setReadMore] = useState(false);
+  const { isSignedIn } = useUser();
+  const [formData, setFormData] = useState<GuestEligibilityRequest>(initialFormState);
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<GuestEligibilityResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const displayedReasoning = useMemo(() => {
-    if (!result) return "";
-    if (readMore || result.reasoning.length <= 200) return result.reasoning;
-    return `${result.reasoning.slice(0, 200)}...`;
-  }, [readMore, result]);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
 
     try {
-      const res = await fetch("/api/guest-analyze", {
+      const response = await fetch("/api/guest-eligibility", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(formData),
       });
 
-      if (res.status === 429) {
-        setError("You have reached the guest limit (3 checks/hour). Please create a free account for unlimited access.");
-        return;
+      if (!response.ok) {
+        throw new Error("Request failed");
       }
 
-      if (!res.ok) throw new Error("Analysis failed");
-
-      const data = (await res.json()) as GuestAnalysisResult;
+      const data = (await response.json()) as GuestEligibilityResult;
       setResult(data);
-      setReadMore(false);
-
-      setTimeout(() => {
-        document.getElementById("result-panel")?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Something went wrong. Try again.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }
 
-  const outcome = result ? outcomeMeta(result.eligibilityStatus) : null;
-
-  const selectClasses =
-    "w-full h-[42px] rounded-lg border border-border bg-bg-card px-3 text-sm text-text-primary transition-colors focus:border-accent-gold focus:outline-none focus:ring-1 focus:ring-accent-gold/40";
+  const fieldClassName =
+    "h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100";
+  const areaClassName =
+    "w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100";
 
   return (
-    <main className="min-h-screen bg-bg-primary">
-      <div className="mx-auto max-w-[680px] px-6 py-16">
-        {/* Header */}
-        <div className="mb-10 text-center">
+    <main className="min-h-screen bg-stone-50">
+      <div className="mx-auto max-w-4xl px-6 py-16">
+        <div className="mx-auto max-w-2xl text-center">
           <Link
-            href="/"
-            className="text-[13px] font-medium text-accent-gold transition-colors hover:text-accent-gold/80"
+            href={"/" as Route}
+            className="inline-flex items-center gap-2 text-sm font-medium text-[#C9A84C] transition hover:text-amber-600"
           >
-            ← Back to JuriSight
+            <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none">
+              <path
+                d="M15.833 10H4.167M9.167 15 4.167 10l5-5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Back to JuriSight
           </Link>
-          <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.1em] text-text-secondary">
-            Guest Eligibility Check
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">
+            Guest Bail Eligibility
           </p>
-          <h1 className="mt-2.5 text-[28px] font-bold leading-tight text-text-primary">
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">
             Check bail eligibility instantly
           </h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-text-secondary">
-            No account needed. Enter case details below and get an AI-powered bail eligibility assessment in seconds.
+          <p className="mt-4 text-sm leading-7 text-gray-600 sm:text-base">
+            Enter core case details to receive a quick bail eligibility assessment under Indian criminal procedure.
           </p>
         </div>
 
-        {/* Guest mode notice */}
-        <div className="mb-7 rounded-lg border border-state-warning/30 bg-state-warning/8 px-4 py-3.5">
-          <p className="text-[13px] font-medium text-state-warning">Guest Mode</p>
-          <p className="mt-1 text-[13px] text-text-secondary">
-            This is a demo assessment. Results are for informational purposes only and do not constitute legal advice. Sign up for full access, case history, and PDF exports.
+        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-amber-100 bg-amber-50/70 p-4">
+          <p className="text-sm font-semibold text-amber-700">Public guest mode</p>
+          <p className="mt-1 text-sm leading-6 text-amber-800/80">
+            This assessment is informational and does not replace legal advice. Sign in to unlock the full analysis flow in your dashboard.
           </p>
         </div>
 
-        {!result ? (
-          /* ── Form Card ──────────────────────────────────────────── */
-          <div className="rounded-xl border border-border bg-bg-card p-8 shadow-panel">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
-              {/* CrPC Section */}
+        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-text-primary">
+                <label htmlFor="crpcSection" className="mb-2 block text-sm font-medium text-gray-900">
                   CrPC Section
                 </label>
                 <select
+                  id="crpcSection"
                   required
-                  value={formData.section}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, section: e.target.value }))}
-                  className={selectClasses}
+                  value={formData.crpcSection}
+                  onChange={(event) =>
+                    setFormData((current) => ({ ...current, crpcSection: event.target.value }))
+                  }
+                  className={fieldClassName}
                 >
-                  <option>S.436 - Bailable Offense</option>
-                  <option>S.437 - Non-Bailable Offense</option>
-                  <option>S.438 - Anticipatory Bail</option>
-                  <option>S.439 - High Court Bail</option>
+                  <option>Section 436 CrPC - Bailable offense</option>
+                  <option>Section 437 CrPC - Non-bailable offense before Magistrate</option>
+                  <option>Section 438 CrPC - Anticipatory bail</option>
+                  <option>Section 439 CrPC - Special powers of High Court or Sessions Court</option>
                 </select>
               </div>
 
-              {/* Offense Type */}
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-text-primary">
+                <label htmlFor="offenseType" className="mb-2 block text-sm font-medium text-gray-900">
                   Offense Type
                 </label>
                 <select
+                  id="offenseType"
                   required
                   value={formData.offenseType}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, offenseType: e.target.value }))}
-                  className={selectClasses}
+                  onChange={(event) =>
+                    setFormData((current) => ({ ...current, offenseType: event.target.value }))
+                  }
+                  className={fieldClassName}
                 >
                   <option>Theft</option>
                   <option>Assault</option>
-                  <option>Fraud</option>
-                  <option>Drug Offense</option>
-                  <option>Cybercrime</option>
-                  <option>Murder</option>
+                  <option>Cheating and fraud</option>
+                  <option>Cyber offense</option>
+                  <option>Drug offense</option>
+                  <option>Domestic violence complaint</option>
                   <option>Kidnapping</option>
-                  <option>Other</option>
+                  <option>Homicide allegation</option>
                 </select>
               </div>
 
-              {/* Accused Profile */}
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-text-primary">
+                <label htmlFor="accusedProfile" className="mb-2 block text-sm font-medium text-gray-900">
                   Accused Profile
                 </label>
                 <select
+                  id="accusedProfile"
                   required
                   value={formData.accusedProfile}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, accusedProfile: e.target.value }))}
-                  className={selectClasses}
+                  onChange={(event) =>
+                    setFormData((current) => ({ ...current, accusedProfile: event.target.value }))
+                  }
+                  className={fieldClassName}
                 >
-                  <option>First-time Offender</option>
-                  <option>Repeat Offender</option>
-                  <option>Juvenile</option>
-                  <option>Senior Citizen</option>
+                  <option>First-time offender with local residence</option>
+                  <option>Repeat offender</option>
+                  <option>Student or young adult</option>
+                  <option>Senior citizen</option>
+                  <option>Primary earning member with dependents</option>
                 </select>
               </div>
 
-              {/* Prior Record */}
               <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-text-primary">
-                  Prior Criminal Record
+                <label htmlFor="priorRecord" className="mb-2 block text-sm font-medium text-gray-900">
+                  Prior Record
                 </label>
                 <select
+                  id="priorRecord"
                   required
                   value={formData.priorRecord}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, priorRecord: e.target.value }))}
-                  className={selectClasses}
+                  onChange={(event) =>
+                    setFormData((current) => ({ ...current, priorRecord: event.target.value }))
+                  }
+                  className={fieldClassName}
                 >
-                  <option>None</option>
-                  <option>Minor Offenses</option>
-                  <option>Major Offenses</option>
+                  <option>No prior criminal record</option>
+                  <option>Minor prior allegations</option>
+                  <option>Pending cases in similar category</option>
+                  <option>Serious prior convictions</option>
                 </select>
               </div>
+            </div>
 
-              {/* Cooperation Level */}
-              <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-text-primary">
-                  Cooperation Level
-                </label>
-                <select
-                  required
-                  value={formData.cooperationLevel}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, cooperationLevel: e.target.value }))}
-                  className={selectClasses}
+            <div>
+              <label htmlFor="cooperationLevel" className="mb-2 block text-sm font-medium text-gray-900">
+                Cooperation Level
+              </label>
+              <select
+                id="cooperationLevel"
+                required
+                value={formData.cooperationLevel}
+                onChange={(event) =>
+                  setFormData((current) => ({ ...current, cooperationLevel: event.target.value }))
+                }
+                className={fieldClassName}
+              >
+                <option>Fully cooperative with investigation</option>
+                <option>Partially cooperative</option>
+                <option>Non-cooperative or evasive</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="description" className="mb-2 block text-sm font-medium text-gray-900">
+                Brief Description
+              </label>
+              <textarea
+                id="description"
+                rows={5}
+                required
+                value={formData.description}
+                onChange={(event) =>
+                  setFormData((current) => ({ ...current, description: event.target.value }))
+                }
+                placeholder="Summarize the incident, allegations, arrest stage, and any relevant circumstances."
+                className={areaClassName}
+              />
+            </div>
+
+            <div className="pt-1">
+              {!result ? (
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-accent-gold/70 bg-accent-gold px-5 py-3.5 text-sm font-semibold text-bg-primary transition-all duration-300 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-80"
                 >
-                  <option>Fully Cooperative</option>
-                  <option>Partially Cooperative</option>
-                  <option>Non-Cooperative</option>
-                </select>
-              </div>
+                  {isLoading ? (
+                    <>
+                      <Spinner />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      Check Eligibility
+                      <ArrowIcon />
+                    </>
+                  )}
+                </button>
+              ) : null}
+              {error ? <p className="mt-3 text-sm text-red-600">Something went wrong. Try again.</p> : null}
+            </div>
+          </form>
+        </div>
 
-              {/* Description */}
-              <div>
-                <label className="mb-1.5 block text-[13px] font-medium text-text-primary">
-                  Brief Description
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Briefly describe the offense circumstances..."
-                  value={formData.offenseDescription}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, offenseDescription: e.target.value }))}
-                  className="w-full rounded-lg border border-border bg-bg-card px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/50 transition-colors focus:border-accent-gold focus:outline-none focus:ring-1 focus:ring-accent-gold/40"
+        {result ? (
+          <section className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+            <div
+              className={`w-full rounded-full border px-4 py-3 text-center text-sm font-semibold uppercase tracking-widest ${verdictClasses(result.verdict)}`}
+            >
+              {result.verdict}
+            </div>
+
+            <div className="mt-6 rounded-xl border border-gray-100 bg-stone-50 p-4">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+                    Risk Score
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold text-gray-900">{result.riskScore}</p>
+                </div>
+                <p className="text-sm text-gray-500">0 to 100</p>
+              </div>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className={`h-full rounded-full transition-all ${progressClasses(result.riskScore)}`}
+                  style={{ width: `${Math.max(0, Math.min(100, result.riskScore))}%` }}
                 />
               </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent-gold px-5 py-3.5 text-[15px] font-semibold text-bg-primary transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-80"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  "Check Eligibility →"
-                )}
-              </button>
-
-              {/* Error */}
-              {error ? (
-                <div className="rounded-md border border-state-error/30 bg-state-error/8 px-3.5 py-2.5 text-[13px] text-state-error">
-                  {error}
-                </div>
-              ) : null}
-            </form>
-          </div>
-        ) : (
-          /* ── Result Panel ───────────────────────────────────────── */
-          <section
-            id="result-panel"
-            className="mt-6 animate-fade-in rounded-xl border border-border bg-bg-card p-7 shadow-panel"
-          >
-            {/* Verdict header */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-text-secondary">
-                  Eligibility Assessment
-                </p>
-                <p className={`mt-1.5 text-[22px] font-bold ${outcome?.color}`}>
-                  {outcome?.label}
-                </p>
-              </div>
-              <div className="text-center">
-                <div
-                  className="grid h-16 w-16 place-items-center rounded-full"
-                  style={{ border: `3px solid ${riskColor(result.riskScore)}` }}
-                >
-                  <span className="text-lg font-bold text-text-primary">
-                    {result.riskScore}/10
-                  </span>
-                </div>
-                <p className="mt-1.5 font-mono text-[9px] uppercase tracking-widest text-text-secondary">
-                  Risk
-                </p>
-              </div>
             </div>
 
-            {/* Divider */}
-            <div className="my-4 h-px bg-border" />
-
-            {/* Reasoning */}
-            <p className="text-sm leading-7 text-text-secondary">
-              {displayedReasoning}
-              {result.reasoning.length > 200 ? (
-                <button
-                  type="button"
-                  onClick={() => setReadMore((prev) => !prev)}
-                  className="ml-2 border-none bg-transparent text-accent-gold transition-colors hover:text-accent-gold/80"
-                >
-                  {readMore ? "Show less" : "Read more"}
-                </button>
-              ) : null}
-            </p>
-
-            {/* Risk factor badges */}
-            <div className="mt-4 flex flex-wrap gap-2">
-              {[
-                `FLIGHT RISK: ${result.riskFactors.flightRisk}`,
-                `EVIDENCE TAMPERING: ${result.riskFactors.evidenceTampering}`,
-                `COMMUNITY TIES: ${result.riskFactors.communityTies}`,
-                `OFFENSE SEVERITY: ${result.riskFactors.offenseSeverity}`,
-              ].map((item) => (
-                <Badge key={item} variant="outline">{item}</Badge>
-              ))}
+            <div className="mt-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Summary</p>
+              <p className="mt-3 text-sm leading-relaxed text-gray-700">{result.summary}</p>
             </div>
 
-            {/* Suggested conditions */}
-            {result.eligibilityStatus !== "LIKELY_INELIGIBLE" && result.suggestedConditions.length > 0 ? (
-              <div className="mt-4 border-t border-border pt-4">
-                <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-text-secondary">
-                  Suggested Conditions
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {result.suggestedConditions.map((condition) => (
-                    <span
-                      key={condition}
-                      className="rounded-full border border-state-success/40 bg-state-success/10 px-3.5 py-1.5 text-[13px] font-medium text-state-success"
-                    >
-                      {condition}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* CTA */}
-            <div className="mt-5 rounded-lg border border-accent-gold/20 bg-accent-gold/8 px-5 py-4">
-              <p className="text-sm font-medium text-text-primary">
-                Want to save this result, access case history, and generate a formal bail application?
-              </p>
+            <div className="mt-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Risk Factors</p>
               <div className="mt-3 flex flex-wrap gap-3">
-                <a
-                  href="/sign-up"
-                  className="rounded-lg bg-accent-gold px-5 py-2.5 text-sm font-semibold text-bg-primary no-underline transition-all hover:brightness-110"
-                >
-                  Create Free Account
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResult(null);
-                    setError("");
-                    setReadMore(false);
-                    setFormData(initialFormData);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="rounded-lg border border-accent-gold/50 bg-transparent px-5 py-2.5 text-sm font-medium text-accent-gold transition-colors hover:bg-accent-gold/10"
-                >
-                  Try Another Case
-                </button>
+                {result.riskFactors.map((factor) => (
+                  <div
+                    key={`${factor.label}-${factor.severity}`}
+                    className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2"
+                  >
+                    <span className="text-sm font-medium text-gray-800">{factor.label}</span>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${severityClasses(factor.severity)}`}
+                    >
+                      {factor.severity}
+                    </span>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-gray-100 bg-stone-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+                  Applicable Section
+                </p>
+                <p className="mt-2 text-sm font-medium text-gray-900">{result.crpcSection}</p>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 bg-stone-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+                  One Recommendation
+                </p>
+                <p className="mt-2 text-sm leading-6 text-gray-800">{result.oneRecommendation}</p>
+              </div>
+            </div>
+
+            <div className="relative mt-5 overflow-hidden rounded-xl border border-gray-100 bg-stone-50 p-4">
+              <div className="space-y-3 blur-sm opacity-50">
+                <div className="h-3 w-11/12 rounded-full bg-gray-300" />
+                <div className="h-3 w-10/12 rounded-full bg-gray-300" />
+                <div className="h-3 w-9/12 rounded-full bg-gray-300" />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-white/45 text-center">
+                <p className="px-6 text-sm font-semibold text-gray-800">
+                  3 more recommendations - Sign in for full report
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50/70 p-4">
+              {isSignedIn ? (
+                <Link
+                  href={"/dashboard" as Route}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] transition hover:text-amber-600"
+                >
+                  View full analysis in Dashboard
+                  <ArrowIcon />
+                </Link>
+              ) : (
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
+                  <Link
+                    href={"/sign-in" as Route}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] transition hover:text-amber-600"
+                  >
+                    Sign in to see full risk breakdown
+                    <ArrowIcon />
+                  </Link>
+                  <Link
+                    href={"/sign-up" as Route}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 transition hover:text-[#C9A84C]"
+                  >
+                    Create free account
+                    <ArrowIcon />
+                  </Link>
+                </div>
+              )}
             </div>
           </section>
-        )}
+        ) : null}
       </div>
     </main>
   );

@@ -10,18 +10,52 @@ import {
   parseStoredChatHistory,
 } from "@/lib/chat-storage";
 
-type CaseHistoryStatus = "Intake" | "Analyzing" | "Action needed" | "In progress" | "Educated";
-
 type CaseHistoryEntry = {
   id: string;
   caseTitle: string;
   summary: string;
   createdAt: string;
-  status: CaseHistoryStatus;
+  status: string;
+  source: "local" | "db";
 };
 
+type ConversationItem = {
+  id: string;
+  sessionId: string;
+  content: string;
+  preview: string;
+  timestamp: number;
+  messages: ChatMessage[];
+  source: "local" | "db";
+};
+
+type DbSessionResponse = Array<{
+  id: string;
+  title: string;
+  updatedAt: string;
+  caseId: string | null;
+  lastMessage: {
+    id: string;
+    role: string;
+    content: string;
+    createdAt: string;
+  } | null;
+}>;
+
+type DbRecentCasesResponse = Array<{
+  id: string;
+  title: string;
+  createdAt: string;
+  status: string;
+  analysis: {
+    riskScore: number;
+    eligibilityStatus: string;
+    recommendation: string;
+  } | null;
+}>;
+
 interface RecentCasesProps {
-  onOpenWithHistory: (messages: ChatMessage[]) => void;
+  onOpenWithHistory: (messages: ChatMessage[], dbSessionId?: string | null) => void;
 }
 
 const CASE_HISTORY_STORAGE_KEY = "jurisight_case_history";
@@ -66,7 +100,7 @@ function parseStoredCaseHistory(raw: string | null): CaseHistoryEntry[] {
     }
 
     return parsed
-      .filter((item): item is CaseHistoryEntry => {
+      .filter((item): item is Omit<CaseHistoryEntry, "source"> => {
         if (!item || typeof item !== "object") {
           return false;
         }
@@ -77,69 +111,142 @@ function parseStoredCaseHistory(raw: string | null): CaseHistoryEntry[] {
           typeof record.caseTitle === "string" &&
           typeof record.summary === "string" &&
           typeof record.createdAt === "string" &&
-          (record.status === "Intake" ||
-            record.status === "Analyzing" ||
-            record.status === "Action needed" ||
-            record.status === "In progress" ||
-            record.status === "Educated")
+          typeof record.status === "string"
         );
       })
-      .slice(0, MAX_ITEMS);
+      .slice(0, MAX_ITEMS)
+      .map((item) => ({
+        ...item,
+        source: "local" as const,
+      }));
   } catch {
     return [];
   }
 }
 
+function loadLocalConversationItems() {
+  const chatHistory = parseStoredChatHistory(localStorage.getItem(CHAT_HISTORY_STORAGE_KEY));
+  const groupedSessions = buildChatSessions(chatHistory);
+
+  return groupedSessions
+    .flatMap((session) =>
+      session.messages
+        .filter((message) => message.role === "user")
+        .map((message) => ({
+          id: message.id,
+          sessionId: session.id,
+          content: message.content,
+          preview: "Open this conversation in the legal awareness chat.",
+          timestamp: message.timestamp,
+          messages: session.messages,
+          source: "local" as const,
+        })),
+    )
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, MAX_ITEMS);
+}
+
+function mapDbSessionToConversationItems(sessions: DbSessionResponse): ConversationItem[] {
+  return sessions.map((session) => {
+    const lastMessageTimestamp = session.lastMessage
+      ? new Date(session.lastMessage.createdAt).getTime()
+      : new Date(session.updatedAt).getTime();
+
+    const messages: ChatMessage[] = session.lastMessage
+      ? [
+          {
+            id: session.lastMessage.id,
+            role: session.lastMessage.role === "assistant" ? "model" : "user",
+            content: session.lastMessage.content,
+            timestamp: lastMessageTimestamp,
+          },
+        ]
+      : [];
+
+    return {
+      id: session.lastMessage?.id ?? session.id,
+      sessionId: session.id,
+      content: session.title,
+      preview: session.lastMessage?.content || "Continue this saved conversation.",
+      timestamp: lastMessageTimestamp,
+      messages,
+      source: "db",
+    };
+  });
+}
+
+function mapDbCasesToCaseItems(cases: DbRecentCasesResponse): CaseHistoryEntry[] {
+  return cases.map((item) => ({
+    id: item.id,
+    caseTitle: item.title,
+    summary: item.analysis?.recommendation || "Analysis saved and ready for review.",
+    createdAt: item.createdAt,
+    status: item.analysis ? "Completed" : item.status,
+    source: "db",
+  }));
+}
+
 export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
-  const [conversationItems, setConversationItems] = useState<
-    Array<{
-      id: string;
-      sessionId: string;
-      content: string;
-      timestamp: number;
-      messages: ChatMessage[];
-    }>
-  >([]);
+  const [conversationItems, setConversationItems] = useState<ConversationItem[]>([]);
   const [caseItems, setCaseItems] = useState<CaseHistoryEntry[]>([]);
 
   useEffect(() => {
-    const loadHistory = () => {
-      try {
-        const chatHistory = parseStoredChatHistory(localStorage.getItem(CHAT_HISTORY_STORAGE_KEY));
-        const groupedSessions = buildChatSessions(chatHistory);
-        const recentUserMessages = groupedSessions
-          .flatMap((session) =>
-            session.messages
-              .filter((message) => message.role === "user")
-              .map((message) => ({
-                id: message.id,
-                sessionId: session.id,
-                content: message.content,
-                timestamp: message.timestamp,
-                messages: session.messages,
-              })),
-          )
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, MAX_ITEMS);
+    let cancelled = false;
 
-        setConversationItems(recentUserMessages);
+    const loadHistory = async () => {
+      let conversationLoadedFromDb = false;
+      let casesLoadedFromDb = false;
+
+      try {
+        const sessionsResponse = await fetch("/api/chat/sessions", { cache: "no-store" });
+        if (sessionsResponse.ok) {
+          const sessions: DbSessionResponse = await sessionsResponse.json();
+          if (!cancelled) {
+            setConversationItems(mapDbSessionToConversationItems(sessions));
+          }
+          conversationLoadedFromDb = true;
+        }
       } catch {
-        setConversationItems([]);
+        conversationLoadedFromDb = false;
+      }
+
+      if (!conversationLoadedFromDb && !cancelled) {
+        try {
+          setConversationItems(loadLocalConversationItems());
+        } catch {
+          setConversationItems([]);
+        }
       }
 
       try {
-        const storedCases = parseStoredCaseHistory(localStorage.getItem(CASE_HISTORY_STORAGE_KEY));
-        setCaseItems(storedCases.slice(0, MAX_ITEMS));
+        const casesResponse = await fetch("/api/cases/recent", { cache: "no-store" });
+        if (casesResponse.ok) {
+          const recentCases: DbRecentCasesResponse = await casesResponse.json();
+          if (!cancelled) {
+            setCaseItems(mapDbCasesToCaseItems(recentCases));
+          }
+          casesLoadedFromDb = true;
+        }
       } catch {
-        setCaseItems([]);
+        casesLoadedFromDb = false;
+      }
+
+      if (!casesLoadedFromDb && !cancelled) {
+        try {
+          const storedCases = parseStoredCaseHistory(localStorage.getItem(CASE_HISTORY_STORAGE_KEY));
+          setCaseItems(storedCases.slice(0, MAX_ITEMS));
+        } catch {
+          setCaseItems([]);
+        }
       }
     };
 
-    loadHistory();
+    void loadHistory();
     window.addEventListener("jurisight_chats_updated", loadHistory);
     window.addEventListener("jurisight_cases_updated", loadHistory);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("jurisight_chats_updated", loadHistory);
       window.removeEventListener("jurisight_cases_updated", loadHistory);
     };
@@ -181,12 +288,12 @@ export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
               <CaseItem
                 key={item.id}
                 title={truncatePreview(item.content)}
-                preview="Open this conversation in the legal awareness chat."
+                preview={truncatePreview(item.preview)}
                 status="Saved"
                 date={formatTimestamp(item.timestamp)}
                 isLast={index === conversationItems.length - 1}
-                onClick={() => onOpenWithHistory(item.messages)}
-                onDelete={() => handleDeleteConversation(item.sessionId)}
+                onClick={() => onOpenWithHistory(item.messages, item.source === "db" ? item.sessionId : null)}
+                onDelete={item.source === "local" ? () => handleDeleteConversation(item.sessionId) : undefined}
               />
             ))
           ) : (
@@ -227,7 +334,7 @@ export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
                 status={item.status}
                 date={formatCaseDate(item.createdAt)}
                 isLast={index === caseItems.length - 1}
-                onDelete={() => handleDeleteCase(item.id)}
+                onDelete={item.source === "local" ? () => handleDeleteCase(item.id) : undefined}
               />
             ))
           ) : (

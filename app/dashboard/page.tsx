@@ -13,15 +13,18 @@ export default function DashboardPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [initialQuery, setInitialQuery] = useState("");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [selectedDbSessionId, setSelectedDbSessionId] = useState<string | null>(null);
 
   const handleHeroSubmit = (query: string) => {
     setInitialQuery(query);
     setChatHistory([]);
+    setSelectedDbSessionId(null);
     setIsChatOpen(true);
   };
 
-  const handleOpenWithHistory = (messages: ChatMessage[]) => {
+  const handleOpenWithHistory = (messages: ChatMessage[], dbSessionId?: string | null) => {
     setChatHistory(messages);
+    setSelectedDbSessionId(dbSessionId ?? null);
     setInitialQuery("");
     setIsChatOpen(true);
   };
@@ -40,6 +43,7 @@ export default function DashboardPage() {
         onClose={() => setIsChatOpen(false)}
         initialQuery={initialQuery}
         sessionMessages={chatHistory}
+        dbSessionId={selectedDbSessionId}
       />
     </DashboardShell>
   );

@@ -46,6 +46,7 @@ model User {
   emailVerified DateTime?
   image         String?
   cases         Case[]
+  chatSessions  ChatSession[]
 }
 
 model Case {
@@ -71,6 +72,7 @@ model Case {
   user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   analysis           Analysis?
   documents          Document[]
+  chatSessions       ChatSession[]
 
   @@index([userId])
 }
@@ -94,6 +96,7 @@ model Analysis {
   suggestedConditions   String[]
   precedents            Json?
   biasWarning           String?
+  rawAnalysis           Json?
   createdAt             DateTime          @default(now())
   case                  Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
 }
@@ -108,4 +111,30 @@ model Document {
   case       Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId])
+}
+
+model ChatSession {
+  id        String    @id @default(cuid())
+  userId    String
+  caseId    String?
+  title     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  case      Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  messages  Message[]
+
+  @@index([userId])
+  @@index([caseId])
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  chatSessionId String
+  role          String
+  content       String
+  createdAt     DateTime    @default(now())
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId])
 }

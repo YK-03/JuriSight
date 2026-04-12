@@ -16,7 +16,7 @@ const items: Item[] = [
   { href: "/cases" as Route, key: "cases", icon: FolderKanban },
   { href: "/cases/new" as Route, key: "newCase", icon: Scale },
   { href: "/authorities" as Route, key: "authorities", icon: Shield },
-  { href: "/demo" as Route, key: "seeHowItWorks", icon: Eye },
+  { href: "/guest" as Route, key: "seeHowItWorks", icon: Eye },
 ];
 
 export function Sidebar() {

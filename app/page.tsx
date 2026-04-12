@@ -37,16 +37,15 @@ export default function LandingPage() {
         <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <Small className="mb-4 block font-mono uppercase tracking-[0.28em] text-accent-gold">Legal Decision Support</Small>
-            <H1 className="max-w-4xl font-display text-5xl leading-tight md:text-7xl">Institutional Bail Intelligence For CrPC Workflows</H1>
+            <H1 className="max-w-4xl font-display text-5xl leading-tight md:text-7xl">Legal Intelligence For Indian Criminal Cases</H1>
             <Lead className="mt-6 max-w-2xl">
-              Institutional bail analysis. Modern, authoritative law tool for case evaluation.
-            </Lead>
+              Case analysis, risk scoring, applicable IPC/BNS sections, legal precedents, and AI chat </Lead>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button asChild size="lg" className="inline-flex h-11 items-center rounded-md border border-accent-gold/70 bg-accent-gold px-5 font-semibold text-bg-primary transition-all duration-300 hover:brightness-105">
                 <Link href={"/sign-up" as Route}>Get Started</Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/demo">See How It Works</Link>
+                <Link href="/how-it-works">See How It Works</Link>
               </Button>
             </div>
             <div className="mt-4 flex items-center gap-3">
@@ -80,9 +79,9 @@ export default function LandingPage() {
       </section>
       <section className="mx-auto grid max-w-7xl gap-4 px-6 pb-20 md:grid-cols-3">
         {[
-          ["Bail Eligibility Assessment", "Structured determination of likely bail outcomes under CrPC sections."],
-          ["Risk Factor Analysis", "Flight risk, offense severity, tampering exposure, and community ties."],
-          ["Legal Reasoning Engine", "Concise legal rationale and conditional recommendation generation."],
+          ["CASE ANALYSIS ENGINE", "Structured evaluation of case merits, risks, and likely outcomes under IPC, BNS, and CrPC sections."],
+          ["RISK FACTOR ANALYSIS", "Offense severity, evidence exposure, community ties, and bias indicators - scored and explained."],
+          ["LEGAL REASONING & PRECEDENTS", "Applicable IPC/BNS sections with relevant Supreme Court precedents and actionable recommendations."],
         ].map(([title, body]) => (
           <Card key={title} className="fx-card group">
             <CardHeader>
@@ -102,30 +101,23 @@ export default function LandingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge variant="warning">Conditional Bail (Discretionary)</Badge>
-              <Badge variant="gold">Overall Risk: 6/10</Badge>
+              <Badge variant="error">UNFAVORABLE VERDICT</Badge>
+              <Badge variant="error">RISK SCORE: 85/100</Badge>
             </div>
             <P className="mt-0 text-sm text-text-primary">
-              The offense falls under a non-bailable category, but community ties and cooperation indicators support a conditional release view under judicial discretion.
+              An employee faces charges under IPC 406 and IPC 420 for alleged financial misappropriation. Strong prosecution case with limited defense options without forensic evidence.
             </P>
             <P className="mt-0 text-sm text-text-secondary italic">
-              Moderate confidence - limited precedent match, some conflicting indicators.
+              High confidence - strong precedent match across multiple Supreme Court judgments.
             </P>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="warning">Flight Risk: MEDIUM</Badge>
-              <Badge variant="error">Evidence Tampering: HIGH</Badge>
-              <Badge variant="success">Community Ties: STRONG</Badge>
-              <Badge variant="warning">Offense Severity: HIGH</Badge>
+              <Badge variant="error">OFFENSE SEVERITY: HIGH</Badge>
+              <Badge variant="error">EVIDENCE EXPOSURE: HIGH</Badge>
+              <Badge variant="outline">APPLICABLE: IPC 406, IPC 420, BNS 316, BNS 318</Badge>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="error">Classification: Non-Bailable</Badge>
-              <Badge variant="outline">Primary Section: CrPC S.437</Badge>
-              <Badge variant="outline">Applicable Laws: CrPC, IPC</Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="success">Travel restriction</Badge>
-              <Badge variant="success">Police reporting (weekly)</Badge>
-              <Badge variant="success">No witness contact</Badge>
+              <Badge variant="outline">PRIMARY SECTION: IPC 406</Badge>
+              <Badge variant="outline">APPLICABLE LAWS: IPC, BNS, CrPC</Badge>
             </div>
           </CardContent>
         </Card>
@@ -136,7 +128,7 @@ export default function LandingPage() {
         <div className="grid gap-4 md:grid-cols-3">
           {[
             ["1", "Input Case Data", "Enter complete case facts, profile, and offense narrative."],
-            ["2", "AI Analysis", "Claude evaluates CrPC bail posture with structured risk scoring."],
+            ["2", "AI Analysis", "AI evaluates case posture with structured risk scoring."],
             ["3", "Review Assessment", "Inspect recommendation, reasoning, and applicable sections."],
           ].map(([n, t, d]) => (
             <Card key={t} className="fx-card group">

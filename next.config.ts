@@ -1,8 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    typedRoutes: true,
+  typedRoutes: true,
+  async redirects() {
+    return [
+      {
+        source: '/demo',
+        destination: '/guest',
+        permanent: true,
+      },
+    ]
   },
 };
 

@@ -19,6 +19,8 @@ interface ChatPanelProps {
   onClose: () => void;
   initialQuery?: string;
   sessionMessages?: ChatMessage[];
+  dbSessionId?: string | null;
+  caseId?: string | null;
 }
 
 const GREETING = "Hello, I'm your JuriSight legal awareness assistant. Ask about sections, procedures, definitions, or court process under Indian law.";
@@ -160,11 +162,19 @@ function formatApiMessages(messages: ChatMessage[]) {
   ];
 }
 
-export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: ChatPanelProps) {
+export function ChatPanel({
+  isOpen,
+  onClose,
+  initialQuery,
+  sessionMessages,
+  dbSessionId: initialDbSessionId,
+  caseId,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [dbSessionId, setDbSessionId] = useState<string | null>(initialDbSessionId ?? null);
   const autoSubmittedQueryRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -175,11 +185,13 @@ export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: Ch
     if (latestSession) {
       setMessages(latestSession.messages);
       setActiveSessionId(latestSession.id);
+      setDbSessionId(null);
       return;
     }
 
     setMessages([]);
     setActiveSessionId(null);
+    setDbSessionId(null);
   }, []);
 
   useEffect(() => {
@@ -189,6 +201,7 @@ export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: Ch
 
       setMessages(restoredMessages);
       setActiveSessionId(resolveSessionId(restoredMessages));
+      setDbSessionId(null);
     };
 
     window.addEventListener("open-chat", handleRestore);
@@ -207,7 +220,8 @@ export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: Ch
 
     setMessages(restoredMessages);
     setActiveSessionId(resolveSessionId(restoredMessages));
-  }, [isOpen, sessionMessages]);
+    setDbSessionId(initialDbSessionId ?? null);
+  }, [initialDbSessionId, isOpen, sessionMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -226,6 +240,7 @@ export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: Ch
 
     setMessages([]);
     setActiveSessionId(null);
+    setDbSessionId(null);
     setInputValue("");
     autoSubmittedQueryRef.current = trimmedInitialQuery;
     const timer = window.setTimeout(() => {
@@ -243,6 +258,7 @@ export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: Ch
     setMessages([]);
     setInputValue("");
     setActiveSessionId(null);
+    setDbSessionId(null);
     autoSubmittedQueryRef.current = null;
   };
 
@@ -263,12 +279,20 @@ export function ChatPanel({ isOpen, onClose, initialQuery, sessionMessages }: Ch
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: formatApiMessages(nextVisibleMessages) }),
+        body: JSON.stringify({
+          messages: formatApiMessages(nextVisibleMessages),
+          sessionId: dbSessionId,
+          caseId,
+        }),
       });
       const data = await response.json();
 
       if (!response.ok || typeof data.reply !== "string") {
         throw new Error(data.error || "Failed to fetch");
+      }
+
+      if (typeof data.sessionId === "string" && data.sessionId.trim()) {
+        setDbSessionId(data.sessionId);
       }
 
       const assistantMessage = createChatMessage("model", data.reply);
