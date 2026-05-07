@@ -106,9 +106,21 @@ export function isSessionBreakMessage(message: ChatMessage): boolean {
 }
 
 function buildSessionTitle(messages: ChatMessage[]): string {
-  const firstUserMessage = messages.find((message) => message.role === "user")?.content.trim();
+  const firstUserMessage = messages.find((message) => message.role === "user")?.content.trim() || "";
+  
+  if (firstUserMessage.startsWith("📄")) {
+    const lines = firstUserMessage.split("\n");
+    const fileNameLine = lines[0].replace("📄", "").trim();
+    const userQueryLine = lines.find(l => l.trim() && !l.startsWith("📄") && !l.startsWith("["));
+    
+    if (userQueryLine) {
+      return `Document: ${fileNameLine} (${userQueryLine.slice(0, 20)}...)`;
+    }
+    return `Document: ${fileNameLine}`;
+  }
+
   const source = firstUserMessage || messages[0]?.content.trim() || "Untitled conversation";
-  return source.length > 48 ? `${source.slice(0, 48).trim()}...` : source;
+  return source.length > 50 ? `${source.slice(0, 50).trim()}...` : source;
 }
 
 function buildSessionPreview(messages: ChatMessage[]): string {

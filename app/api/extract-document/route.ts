@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { generateText } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { getOrCreateUser } from "@/lib/user-sync";
+import { parsePdfText } from "@/lib/pdf";
+import { cleanPdfText } from "@/lib/text-cleaning";
+import { buildLegacyExtractedCase, extractStructuredDocument } from "@/lib/document-parser";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -21,10 +22,6 @@ const ExtractedCaseSchema = z.object({
   previousConvictions: z.boolean(),
   notes: z.string(),
 });
-
-function extractJsonBlock(raw: string): unknown {
-  return JSON.parse(raw.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim());
-}
 
 function normalizeDate(value: string): string {
   const trimmed = value.trim();
@@ -47,10 +44,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: "ANTHROPIC_API_KEY is missing" }, { status: 500 });
-    }
-
     const formData = await req.formData();
     const fileEntry = formData.get("file");
 
@@ -66,39 +59,67 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "PDF must be between 1 byte and 10MB" }, { status: 400 });
     }
 
+    // 1. Extract raw text from the PDF
     const buffer = Buffer.from(await fileEntry.arrayBuffer());
-    const base64 = buffer.toString("base64");
+    const rawText = await parsePdfText(buffer);
 
-    const { text } = await generateText({
-      model: anthropic("claude-sonnet-4-20250514"),
-      system:
-        "You are a legal document parser for Indian criminal law. Extract structured case information from the uploaded FIR, charge sheet, or remand order. Return ONLY valid JSON.",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract the structured case information from this PDF. If a field is missing, use an empty string for string fields and null only for accusedAge.",
-            },
-            {
-              type: "file",
-              data: base64,
-              mediaType: "application/pdf",
-              filename: fileEntry.name,
-            },
-          ],
-        },
-      ],
+    if (!rawText || rawText.trim().length < 10) {
+      return NextResponse.json({ error: "Could not extract enough text from the PDF. Is it a scanned image?" }, { status: 422 });
+    }
+
+    const cleanedText = cleanPdfText(rawText);
+    if (!cleanedText || cleanedText.trim().length < 10) {
+      return NextResponse.json({ error: "Could not derive usable text from the PDF after cleaning." }, { status: 422 });
+    }
+
+    const { structured, meta } = await extractStructuredDocument(cleanedText);
+    const legacyCandidate = buildLegacyExtractedCase(structured, cleanedText);
+    const result = ExtractedCaseSchema.safeParse(legacyCandidate);
+
+    if (!result.success) {
+      console.error("[Extract Document] Zod Validation Failed:", result.error.format());
+      return NextResponse.json({ 
+        error: "Document structure was not recognized correctly.",
+        details: result.error.format()
+      }, { status: 422 });
+    }
+
+    const parsed = result.data;
+
+    console.log("[Extract Document] Pipeline Metrics:", {
+      filename: fileEntry.name,
+      rawTextLength: rawText.length,
+      cleanedTextLength: cleanedText.length,
+      documentType: structured.documentType,
+      detectedDocumentType: meta.detectedDocumentType,
+      chunkingTriggered: meta.chunkingTriggered,
+      chunkCount: meta.chunkCount,
+      aiCalls: meta.aiCalls,
+      aiDurationMs: meta.aiDurationMs,
     });
-
-    const parsed = ExtractedCaseSchema.parse(extractJsonBlock(text));
 
     return NextResponse.json({
       ...parsed,
       arrestDate: normalizeDate(parsed.arrestDate),
+      documentType: structured.documentType,
+      accused: structured.accused,
+      complainant: structured.complainant,
+      sectionsList: structured.sections,
+      allegationsList: structured.allegations,
+      evidence: structured.evidence,
+      courtStage: structured.courtStage,
+      custodyFacts: structured.custodyFacts,
+      proceduralConcerns: structured.proceduralConcerns,
+      timeline: structured.timeline,
+      keyEntities: structured.keyEntities,
+      extractionMeta: {
+        rawTextLength: rawText.length,
+        cleanedTextLength: cleanedText.length,
+        ...meta,
+      },
     });
   } catch (error) {
+    console.error("[Extract Document] Error:", error);
     const message = error instanceof Error ? error.message : "Document extraction failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

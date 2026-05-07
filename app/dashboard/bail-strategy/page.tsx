@@ -15,6 +15,11 @@ type PreviousBail = "none" | "1-rejected" | "2plus-rejected" | "granted-cancelle
 type Eligibility = "Likely eligible" | "Uncertain" | "Unlikely eligible";
 
 interface BailStrategyRequestBody {
+  courtName: string;
+  applicantName: string;
+  fatherName: string;
+  address: string;
+  policeStation: string;
   sections: string;
   offenseType: OffenseType | "";
   custodyDuration: CustodyDuration;
@@ -26,32 +31,21 @@ interface BailStrategyRequestBody {
   additionalContext: string;
 }
 
-interface BailGround {
-  title: string;
-  explanation: string;
-}
-
-interface BailPrecedent {
-  case: string;
-  citation: string;
-  relevance: string;
-}
-
 interface BailStrategyResult {
-  eligibility: Eligibility;
-  custodyLabel: string;
+  eligibility: string;
+  reasoning: string[];
+  keyFactors: string[];
   suretyRangeMin: number;
   suretyRangeMax: number;
-  recommendedSection: string;
-  recommendedCourt: string;
-  escalationPath: string;
-  grounds: BailGround[];
-  precedents: BailPrecedent[];
-  courtNote: string;
-  biasWarning: string | null;
+  suretyLabel?: string;
 }
 
 const INITIAL_FORM: BailStrategyRequestBody = {
+  courtName: "",
+  applicantName: "",
+  fatherName: "",
+  address: "",
+  policeStation: "",
   sections: "",
   offenseType: "",
   custodyDuration: "under-30",
@@ -134,6 +128,7 @@ function BailStrategyPageContent() {
   const [result, setResult] = useState<BailStrategyResult | null>(null);
   const [error, setError] = useState("");
 
+
   function PillGroup<T extends string>({
     options,
     value,
@@ -190,6 +185,14 @@ function BailStrategyPageContent() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!form.courtName.trim()) {
+      setError("Court name is required.");
+      return;
+    }
+    if (!form.applicantName.trim()) {
+      setError("Applicant name is required.");
+      return;
+    }
     if (!form.offenseType) {
       setError("Select an offense type to continue.");
       return;
@@ -204,10 +207,10 @@ function BailStrategyPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+      
+      const data = (await response.json()) as { strategy?: BailStrategyResult; error?: string; success?: boolean };
 
-      const data = (await response.json()) as { strategy?: BailStrategyResult; error?: string };
-
-      if (!response.ok || !data.strategy) {
+      if (!response.ok || data.success === false || !data.strategy) {
         throw new Error(data.error || "Unable to check eligibility right now.");
       }
 
@@ -261,6 +264,52 @@ function BailStrategyPageContent() {
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
+                  <label className="flex flex-col gap-2 md:col-span-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-text-primary">Court Name</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8952A]">Required</span>
+                    </div>
+                    <input
+                      value={form.courtName}
+                      onChange={(event) => setForm((current) => ({ ...current, courtName: event.target.value }))}
+                      placeholder="Sessions Judge, Saket Courts, New Delhi"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-text-primary">Applicant Name</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8952A]">Required</span>
+                    </div>
+                    <input
+                      value={form.applicantName}
+                      onChange={(event) => setForm((current) => ({ ...current, applicantName: event.target.value }))}
+                      placeholder="Rajesh Kumar"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-text-primary">Father&apos;s Name</span>
+                    <input
+                      value={form.fatherName}
+                      onChange={(event) => setForm((current) => ({ ...current, fatherName: event.target.value }))}
+                      placeholder="Shri Ram Kumar"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-2 md:col-span-2">
+                    <span className="text-sm font-medium text-text-primary">Address</span>
+                    <input
+                      value={form.address}
+                      onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+                      placeholder="R-42, Lajpat Nagar, New Delhi - 110024"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                    />
+                  </label>
+
                   <label className="flex flex-col gap-2 md:col-span-2">
                     <span className="text-sm font-medium text-text-primary">Sections</span>
                     <input
@@ -344,6 +393,16 @@ function BailStrategyPageContent() {
                     />
                   </label>
 
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-text-primary">Police Station</span>
+                    <input
+                      value={form.policeStation}
+                      onChange={(event) => setForm((current) => ({ ...current, policeStation: event.target.value }))}
+                      placeholder="PS Hauz Khas, New Delhi"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                    />
+                  </label>
+
                   <label className="flex flex-col gap-2 md:col-span-2">
                     <span className="text-sm font-medium text-text-primary">Additional context</span>
                     <textarea
@@ -356,9 +415,9 @@ function BailStrategyPageContent() {
                   </label>
                 </div>
 
-                {error && form.offenseType ? (
+                {error ? (
                   <div className="mt-5 rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-4 text-sm text-red-600">
-                    {error}
+                    <p>{error}</p>
                   </div>
                 ) : null}
 
@@ -386,107 +445,62 @@ function BailStrategyPageContent() {
               </div>
             </div>
           </section>
-
           <section className={viewState === "result" && result ? "block" : "hidden"}>
             {result ? (
               <div className="space-y-6">
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#B8952A]">Bail Strategy Brief</p>
-                      <h2 className="mt-3 text-2xl font-semibold text-text-primary">Eligibility and filing strategy summary</h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#B8952A]">Eligibility check</p>
+                      <h2 className="mt-3 text-2xl font-semibold text-text-primary">Bail Eligibility Summary</h2>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${eligibilityBadgeClasses(result.eligibility)}`}>
+                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${eligibilityBadgeClasses(result.eligibility as Eligibility)}`}>
                         {result.eligibility}
-                      </span>
-                      <span className="inline-flex items-center rounded-full border border-border/60 bg-bg-primary px-3 py-1 text-xs font-semibold text-text-primary">
-                        {result.recommendedCourt}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-3xl border border-border/50 bg-bg-card p-5 shadow-panel">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Custody</p>
-                    <p className="mt-3 text-lg font-semibold text-text-primary">{result.custodyLabel}</p>
-                  </div>
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-3xl border border-border/50 bg-bg-card p-5 shadow-panel">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Surety Range</p>
                     <p className="mt-3 text-lg font-semibold text-text-primary">
-                      {formatCurrency(result.suretyRangeMin)} - {formatCurrency(result.suretyRangeMax)}
+                      {result.suretyLabel || `${formatCurrency(result.suretyRangeMin)} - ${formatCurrency(result.suretyRangeMax)}`}
+                    </p>
+                    <p className="mt-1 text-xs text-text-secondary opacity-80">
+                      (Indicative range based on similar cases; subject to court discretion)
                     </p>
                   </div>
-                  <div className="rounded-3xl border border-border/50 bg-bg-card p-5 shadow-panel">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Section</p>
-                    <p className="mt-3 text-lg font-semibold text-text-primary">{result.recommendedSection}</p>
-                  </div>
                 </div>
 
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
-                  <h3 className="text-lg font-semibold text-text-primary">Grounds</h3>
+                  <h3 className="text-lg font-semibold text-text-primary">Reasoning</h3>
                   <div className="mt-5 space-y-4">
-                    {result.grounds.map((ground) => (
-                      <div key={`${ground.title}-${ground.explanation}`} className="flex gap-3">
+                    {result.reasoning?.map((point, idx) => (
+                      <div key={idx} className="flex gap-3">
                         <span className="mt-2 h-2.5 w-2.5 flex-none rounded-full bg-[#B8952A]" />
-                        <div>
-                          <p className="text-sm font-semibold text-text-primary">{ground.title}</p>
-                          <p className="mt-1 text-sm leading-6 text-text-secondary">{ground.explanation}</p>
-                        </div>
+                        <p className="text-sm font-medium leading-6 text-text-primary">{point}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
-                  <div className="flex flex-wrap gap-3">
-                    <span className="inline-flex items-center rounded-full border border-[#B8952A]/20 bg-[#B8952A]/10 px-3 py-1 text-xs font-semibold text-[#B8952A]">
-                      {result.recommendedSection}
-                    </span>
-                    <span className="inline-flex items-center rounded-full border border-border/60 bg-bg-primary px-3 py-1 text-xs font-semibold text-text-primary">
-                      {result.recommendedCourt}
-                    </span>
-                  </div>
-                  <h3 className="mt-5 text-lg font-semibold text-text-primary">Court Strategy</h3>
-                  <p className="mt-3 text-sm leading-6 text-text-secondary">{result.courtNote}</p>
-                  {result.escalationPath.trim() ? (
-                    <div className="mt-5 rounded-2xl border border-border/50 bg-bg-primary px-4 py-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">Escalation Path</p>
-                      <p className="mt-2 text-sm leading-6 text-text-primary">{result.escalationPath}</p>
+                {result.keyFactors && result.keyFactors.length > 0 && (
+                  <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
+                    <h3 className="text-lg font-semibold text-text-primary">Key Factors</h3>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {result.keyFactors.map((factor, idx) => (
+                        <span key={idx} className="inline-flex items-center rounded-full border border-border/60 bg-bg-primary px-3 py-1 text-xs font-medium text-text-primary">
+                          {factor}
+                        </span>
+                      ))}
                     </div>
-                  ) : null}
-                </div>
-
-                <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
-                  <h3 className="text-lg font-semibold text-text-primary">Precedents</h3>
-                  <div className="mt-5 space-y-4">
-                    {result.precedents.map((precedent) => (
-                      <div key={`${precedent.case}-${precedent.citation}`} className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-4">
-                        <p className="text-sm font-semibold text-text-primary">{precedent.case}</p>
-                        <p className="mt-1 font-mono text-xs text-text-secondary">{precedent.citation}</p>
-                        <p className="mt-3 text-sm leading-6 text-text-secondary">{precedent.relevance}</p>
-                      </div>
-                    ))}
                   </div>
-                </div>
-
-                {result.biasWarning ? (
-                  <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-6 shadow-panel">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">Bias Warning</p>
-                    <p className="mt-3 text-sm leading-6 text-red-700">{result.biasWarning}</p>
-                  </div>
-                ) : null}
+                )}
 
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={() => router.push("/dashboard/generate-application" as Route)}
-                      className="flex h-12 items-center justify-center rounded-2xl bg-[#B8952A] px-5 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[#B8952A]/20"
-                    >
-                      Generate Application
-                    </button>
                     <button
                       type="button"
                       onClick={resetFormView}
@@ -496,14 +510,13 @@ function BailStrategyPageContent() {
                     </button>
                   </div>
                   <p className="mt-4 text-xs leading-5 text-text-secondary">
-                    This structured output is for legal research and drafting support. Bail outcomes depend on case facts, local practice, judicial discretion, and the latest statutory position.
+                    This structural analysis is for legal review. Bail outcomes depend heavily on specific case facts and judicial discretion.
                   </p>
                 </div>
               </div>
             ) : null}
           </section>
-        </div>
-      </main>
+        </div>      </main>
     </DashboardShell>
   );
 }

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateAIResponse } from "@/lib/groq";
 import db from "@/lib/db";
 import { getOrCreateUser } from "@/lib/user-sync";
 
@@ -38,6 +38,7 @@ Style:
 - Keep answers modular so users can easily ask follow-up questions`;
 
 type IncomingMessage = {
+  id?: string;
   role: string;
   parts: string;
 };
@@ -49,7 +50,39 @@ type ChatRequestBody = {
 };
 
 function buildSessionTitle(messages: IncomingMessage[]) {
-  const firstUserMessage = messages.find((message) => message.role === "user")?.parts?.trim();
+  const firstUserMessage = messages.find((message) => 
+    message.role === "user" && message.id !== "jurisight-policy-context"
+  )?.parts?.trim() || "";
+  
+  if (firstUserMessage.startsWith("📄")) {
+    const lines = firstUserMessage.split("\n");
+    const fileNameLine = lines[0].replace("📄", "").trim();
+    const userQueryLine = lines.find(l => l.trim() && !l.startsWith("📄") && !l.startsWith("["));
+    
+    if (userQueryLine) {
+      const title = `Document: ${fileNameLine} (${userQueryLine.slice(0, 20)}...)`;
+      return title.length > 80 ? `${title.slice(0, 80).trim()}...` : title;
+    }
+    const title = `Document: ${fileNameLine}`;
+    return title.length > 80 ? `${title.slice(0, 80).trim()}...` : title;
+  }
+
+  if (firstUserMessage.startsWith("[Uploaded Document:")) {
+    const lines = firstUserMessage.split("\n");
+    const docMatch = lines[0].match(/\[Uploaded Document:\s*(.*?)\]/);
+    const fileName = docMatch ? docMatch[1].trim() : "document.pdf";
+    const userQueryLine = lines.find(l => l.trim() && l.startsWith("User question:"));
+    
+    if (userQueryLine) {
+      const query = userQueryLine.replace("User question:", "").trim();
+      const title = `Document: ${fileName} (${query.slice(0, 20)}...)`;
+      return title.length > 80 ? `${title.slice(0, 80).trim()}...` : title;
+    }
+    
+    const title = `Document: ${fileName}`;
+    return title.length > 80 ? `${title.slice(0, 80).trim()}...` : title;
+  }
+
   const title = firstUserMessage || "Untitled conversation";
   return title.length > 80 ? `${title.slice(0, 80).trim()}...` : title;
 }
@@ -58,24 +91,21 @@ function getLatestUserMessage(messages: IncomingMessage[]) {
   return [...messages].reverse().find((message) => message.role === "user" && message.parts.trim());
 }
 
-export async function POST(req: Request) {
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Gemini API key not configured." }), { status: 500 });
-    }
 
-    const { messages, sessionId, caseId }: ChatRequestBody = await req.json();
+export async function POST(req: Request) {
+  let body: ChatRequestBody;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400 });
+  }
+
+  try {
+    const { messages, sessionId, caseId } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Invalid payload" }), { status: 400 });
     }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction,
-    });
 
     const latestUserText = messages[messages.length - 1]?.parts;
 
@@ -87,37 +117,57 @@ export async function POST(req: Request) {
     const persistedSessionId =
       typeof sessionId === "string" && sessionId.trim() ? sessionId : null;
 
-    let history = messages.slice(0, -1).map((msg) => ({
-      role: msg.role === "model" ? "model" : "user",
-      parts: [{ text: msg.parts }],
-    }));
-
-    if (user && persistedSessionId) {
-      const existingSession = await db.chatSession.findFirst({
-        where: {
-          id: persistedSessionId,
-          userId: user.id,
-        },
-        include: {
-          messages: {
-            orderBy: {
-              createdAt: "asc",
+    const cacheKey = JSON.stringify({ persistedSessionId, latestUserText });
+    let aiResponse;
+    try {
+      let chatHistoryText = "";
+      
+      if (user && persistedSessionId) {
+        const existingSession = await db.chatSession.findFirst({
+          where: {
+            id: persistedSessionId,
+            userId: user.id,
+          },
+          include: {
+            messages: {
+              orderBy: {
+                createdAt: "asc",
+              },
             },
           },
-        },
-      });
+        });
 
-      if (existingSession) {
-        history = existingSession.messages.map((message) => ({
-          role: message.role === "assistant" ? "model" : "user",
-          parts: [{ text: message.content }],
-        }));
+        if (existingSession) {
+          chatHistoryText = existingSession.messages
+            .map((message) => `${message.role === "assistant" ? "AI" : "User"}: ${message.content}`)
+            .join("\n\n");
+        }
+      } else {
+        chatHistoryText = messages.slice(0, -1)
+          .map((msg) => `${msg.role === "model" ? "AI" : "User"}: ${msg.parts}`)
+          .join("\n\n");
       }
+
+      const prompt = `${systemInstruction}\n\nChat History:\n${chatHistoryText}\n\nUser: ${latestUserText}\n\nAI:`;
+      
+      console.log("[Chat API] Sending prompt to Groq. Length:", prompt.length);
+      const rawText = await generateAIResponse(prompt);
+      console.log("[Chat API] Received response from Groq. Length:", rawText.length);
+
+      aiResponse = { success: true, text: rawText.trim() };
+    } catch (error) {
+      console.error("[Chat API] Groq Error:", error);
+      aiResponse = { success: false, fallback: true };
     }
 
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(latestUserText);
-    const reply = result.response.text();
+    if (!aiResponse.success || aiResponse.fallback) {
+      return new Response(
+        JSON.stringify({ success: false, fallback: true, message: aiResponse.message || "AI is currently under heavy load. Please try again shortly." }), 
+        { status: 200 }
+      );
+    }
+    
+    const reply = aiResponse.text as string;
 
     let nextSessionId: string | null = persistedSessionId;
 
@@ -200,12 +250,16 @@ export async function POST(req: Request) {
     }
 
     return new Response(JSON.stringify({ reply, sessionId: nextSessionId }), { status: 200 });
-  } catch (error: unknown) {
+  } catch (e: any) {
+    console.error("[API ERROR]", e);
+
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "An expected error occurred",
+        success: false,
+        fallback: true,
+        message: "AI is currently under heavy load. Please try again shortly."
       }),
-      { status: 500 },
+      { status: 200 }
     );
   }
 }

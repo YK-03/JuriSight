@@ -7,6 +7,108 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String        @id @default(cuid())
+  email         String?       @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  clerkId       String        @unique
+  cases         Case[]
+  chatSessions  ChatSession[]
+}
+
+model Case {
+  id                   String        @id @default(cuid())
+  userId               String
+  title                String
+  accusedName          String
+  section              String
+  offenseType          String
+  accusedProfile       String
+  priorRecord          Boolean
+  offenseDescription   String
+  cooperationLevel     String
+  jurisdiction         String
+  legalFramework       String?
+  specialAct           String?
+  dateOfArrest         DateTime?
+  maximumSentenceYears Int?
+  timeServedDays       Int?
+  isPublic             Boolean       @default(true)
+  status               CaseStatus    @default(PENDING)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  analysis             Analysis?
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatSessions         ChatSession[]
+  documents            Document[]
+
+  @@index([userId])
+}
+
+model Analysis {
+  id                    String            @id @default(cuid())
+  caseId                String            @unique
+  eligibilityStatus     EligibilityStatus
+  confidenceLevel       ConfidenceLevel
+  confidenceExplanation String
+  riskScore             Int
+  reasoning             String
+  riskFactors           Json
+  legalBasis            Json
+  flightRisk            RiskLevel
+  offenseSeverity       OffenseSeverity
+  recommendation        String
+  applicableSections    String[]
+  positiveFactors       String[]
+  negativeFactors       String[]
+  suggestedConditions   String[]
+  precedents            Json?
+  biasWarning           String?
+  createdAt             DateTime          @default(now())
+  rawAnalysis           Json?
+  case                  Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  caseId     String
+  filename   String
+  fileUrl    String
+  parsedText String
+  createdAt  DateTime @default(now())
+  case       Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+model ChatSession {
+  id        String    @id @default(cuid())
+  userId    String
+  caseId    String?
+  title     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  case      Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([userId])
+  @@index([caseId])
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  chatSessionId String
+  role          String
+  content       String
+  createdAt     DateTime    @default(now())
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  @@index([chatSessionId])
+}
+
 enum CaseStatus {
   PENDING
   ANALYZED
@@ -36,105 +138,4 @@ enum OffenseSeverity {
   MODERATE
   HIGH
   SEVERE
-}
-
-model User {
-  id            String    @id @default(cuid())
-  clerkId       String    @unique
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  cases         Case[]
-  chatSessions  ChatSession[]
-}
-
-model Case {
-  id                 String     @id @default(cuid())
-  userId             String
-  title              String
-  accusedName        String
-  section            String
-  offenseType        String
-  accusedProfile     String
-  priorRecord        Boolean
-  offenseDescription String
-  cooperationLevel   String
-  jurisdiction       String
-  legalFramework     String?
-  specialAct         String?
-  dateOfArrest       DateTime?
-  maximumSentenceYears Int?
-  timeServedDays     Int?
-  status             CaseStatus @default(PENDING)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analysis           Analysis?
-  documents          Document[]
-  chatSessions       ChatSession[]
-
-  @@index([userId])
-}
-
-model Analysis {
-  id                    String            @id @default(cuid())
-  caseId                String            @unique
-  eligibilityStatus     EligibilityStatus
-  confidenceLevel       ConfidenceLevel
-  confidenceExplanation String
-  riskScore             Int
-  reasoning             String
-  riskFactors           Json
-  legalBasis            Json
-  flightRisk            RiskLevel
-  offenseSeverity       OffenseSeverity
-  recommendation        String
-  applicableSections    String[]
-  positiveFactors       String[]
-  negativeFactors       String[]
-  suggestedConditions   String[]
-  precedents            Json?
-  biasWarning           String?
-  rawAnalysis           Json?
-  createdAt             DateTime          @default(now())
-  case                  Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
-}
-
-model Document {
-  id         String   @id @default(cuid())
-  caseId     String
-  filename   String
-  fileUrl    String
-  parsedText String
-  createdAt  DateTime @default(now())
-  case       Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@index([caseId])
-}
-
-model ChatSession {
-  id        String    @id @default(cuid())
-  userId    String
-  caseId    String?
-  title     String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  case      Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  messages  Message[]
-
-  @@index([userId])
-  @@index([caseId])
-}
-
-model Message {
-  id            String      @id @default(cuid())
-  chatSessionId String
-  role          String
-  content       String
-  createdAt     DateTime    @default(now())
-  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
-
-  @@index([chatSessionId])
 }

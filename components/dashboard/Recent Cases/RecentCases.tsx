@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { CaseItem } from "./CaseItem";
 import {
   buildChatSessions,
@@ -17,6 +18,8 @@ type CaseHistoryEntry = {
   createdAt: string;
   status: string;
   source: "local" | "db";
+  riskScore?: number | null;
+  verdict?: string | null;
 };
 
 type ConversationItem = {
@@ -51,6 +54,7 @@ type DbRecentCasesResponse = Array<{
     riskScore: number;
     eligibilityStatus: string;
     recommendation: string;
+    verdict?: string | null;
   } | null;
 }>;
 
@@ -175,20 +179,68 @@ function mapDbSessionToConversationItems(sessions: DbSessionResponse): Conversat
   });
 }
 
+function getRiskLabel(score: number): string {
+  if (score >= 70) return "High Risk";
+  if (score >= 40) return "Moderate Risk";
+  return "Low Risk";
+}
+
+function mapVerdictToLabel(eligibility: string): string {
+  switch (eligibility) {
+    case "LIKELY_ELIGIBLE": return "FAVORABLE";
+    case "LIKELY_INELIGIBLE": return "UNFAVORABLE";
+    case "BORDERLINE": return "MIXED";
+    default: return eligibility;
+  }
+}
+
 function mapDbCasesToCaseItems(cases: DbRecentCasesResponse): CaseHistoryEntry[] {
   return cases.map((item) => ({
     id: item.id,
     caseTitle: item.title,
     summary: item.analysis?.recommendation || "Analysis saved and ready for review.",
     createdAt: item.createdAt,
-    status: item.analysis ? "Completed" : item.status,
+    status: item.analysis
+      ? mapVerdictToLabel(item.analysis.eligibilityStatus)
+      : item.status,
     source: "db",
+    riskScore: item.analysis?.riskScore ?? null,
+    verdict: item.analysis?.eligibilityStatus ?? null,
   }));
 }
 
 export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
+  const router = useRouter();
   const [conversationItems, setConversationItems] = useState<ConversationItem[]>([]);
   const [caseItems, setCaseItems] = useState<CaseHistoryEntry[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCaseClick = useCallback((caseId: string) => {
+    router.push(`/dashboard/analysis/${caseId}`);
+  }, [router]);
+
+  const handleShareCase = useCallback((caseId: string, title?: string) => {
+    const url = `${window.location.origin}/share/${caseId}`;
+
+    if (typeof navigator.share === "function") {
+      navigator.share({
+        title: title || "JuriSight Case Analysis",
+        text: `Check out this legal case analysis on JuriSight`,
+        url,
+      }).catch(() => {
+        // User cancelled or share failed — fall back to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+          setCopiedId(caseId);
+          setTimeout(() => setCopiedId(null), 2000);
+        });
+      });
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopiedId(caseId);
+        setTimeout(() => setCopiedId(null), 2000);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,29 +304,55 @@ export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
     };
   }, []);
 
-  const handleDeleteConversation = (sessionId: string) => {
-    try {
-      const chatHistory = parseStoredChatHistory(localStorage.getItem(CHAT_HISTORY_STORAGE_KEY));
-      const remainingSessions = buildChatSessions(chatHistory).filter((session) => session.id !== sessionId);
-      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(flattenChatSessions(remainingSessions)));
-      window.dispatchEvent(new Event("jurisight_chats_updated"));
-    } catch {
-      // Ignore localStorage failures to keep the dashboard usable.
+  const handleDeleteConversation = useCallback(async (sessionId: string, source: "local" | "db") => {
+    if (source === "db") {
+      setConversationItems((prev) => prev.filter((c) => c.sessionId !== sessionId));
+      try {
+        const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
+        if (!res.ok) {
+          window.dispatchEvent(new Event("jurisight_chats_updated"));
+        }
+      } catch {
+        window.dispatchEvent(new Event("jurisight_chats_updated"));
+      }
+    } else {
+      try {
+        const chatHistory = parseStoredChatHistory(localStorage.getItem(CHAT_HISTORY_STORAGE_KEY));
+        const remainingSessions = buildChatSessions(chatHistory).filter((session) => session.id !== sessionId);
+        localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(flattenChatSessions(remainingSessions)));
+        window.dispatchEvent(new Event("jurisight_chats_updated"));
+      } catch {
+        // Ignore localStorage failures to keep the dashboard usable.
+      }
     }
-  };
+  }, []);
 
-  const handleDeleteCase = (caseId: string) => {
-    try {
-      const storedCases = parseStoredCaseHistory(localStorage.getItem(CASE_HISTORY_STORAGE_KEY));
-      localStorage.setItem(
-        CASE_HISTORY_STORAGE_KEY,
-        JSON.stringify(storedCases.filter((item) => item.id !== caseId)),
-      );
-      window.dispatchEvent(new Event("jurisight_cases_updated"));
-    } catch {
-      // Ignore localStorage failures to keep the dashboard usable.
+  const handleDeleteCase = useCallback(async (caseId: string, source: "local" | "db") => {
+    if (source === "db") {
+      // Optimistically remove from UI
+      setCaseItems((prev) => prev.filter((c) => c.id !== caseId));
+      try {
+        const res = await fetch(`/api/cases/${caseId}`, { method: "DELETE" });
+        if (!res.ok) {
+          // Re-fetch to restore if delete failed
+          window.dispatchEvent(new Event("jurisight_cases_updated"));
+        }
+      } catch {
+        window.dispatchEvent(new Event("jurisight_cases_updated"));
+      }
+    } else {
+      try {
+        const storedCases = parseStoredCaseHistory(localStorage.getItem(CASE_HISTORY_STORAGE_KEY));
+        localStorage.setItem(
+          CASE_HISTORY_STORAGE_KEY,
+          JSON.stringify(storedCases.filter((item) => item.id !== caseId)),
+        );
+        window.dispatchEvent(new Event("jurisight_cases_updated"));
+      } catch {
+        // Ignore localStorage failures to keep the dashboard usable.
+      }
     }
-  };
+  }, []);
 
   return (
     <div className="w-full flex flex-col gap-5">
@@ -289,11 +367,10 @@ export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
                 key={item.id}
                 title={truncatePreview(item.content)}
                 preview={truncatePreview(item.preview)}
-                status="Saved"
                 date={formatTimestamp(item.timestamp)}
                 isLast={index === conversationItems.length - 1}
                 onClick={() => onOpenWithHistory(item.messages, item.source === "db" ? item.sessionId : null)}
-                onDelete={item.source === "local" ? () => handleDeleteConversation(item.sessionId) : undefined}
+                onDelete={() => handleDeleteConversation(item.sessionId, item.source)}
               />
             ))
           ) : (
@@ -331,10 +408,16 @@ export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
                 key={item.id}
                 title={item.caseTitle}
                 preview={truncatePreview(item.summary)}
-                status={item.status}
                 date={formatCaseDate(item.createdAt)}
                 isLast={index === caseItems.length - 1}
-                onDelete={item.source === "local" ? () => handleDeleteCase(item.id) : undefined}
+                onClick={() => handleCaseClick(item.id)}
+                onDelete={() => handleDeleteCase(item.id, item.source)}
+                onShare={() => handleShareCase(item.id, item.caseTitle)}
+                riskBadge={
+                  item.riskScore != null
+                    ? `${item.riskScore} • ${getRiskLabel(item.riskScore)}`
+                    : null
+                }
               />
             ))
           ) : (

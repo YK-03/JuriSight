@@ -81,6 +81,19 @@ export async function DELETE(_: Request, context: { params: Promise<{ id:string 
 
   if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await db.case.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  try {
+    await db.$transaction([
+      // Disconnect chat sessions so the FK doesn't block deletion
+      db.chatSession.updateMany({
+        where: { caseId: id },
+        data: { caseId: null },
+      }),
+      db.case.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[DELETE /api/cases] Failed to delete case:", error);
+    return NextResponse.json({ error: "Failed to delete case" }, { status: 500 });
+  }
 }

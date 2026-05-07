@@ -12,11 +12,15 @@ import { ChatMessage } from "@/lib/chat-storage";
 export default function DashboardPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [initialQuery, setInitialQuery] = useState("");
+  const [initialFile, setInitialFile] = useState<File | null>(null);
+  const [initialExtractedText, setInitialExtractedText] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [selectedDbSessionId, setSelectedDbSessionId] = useState<string | null>(null);
 
-  const handleHeroSubmit = (query: string) => {
+  const handleHeroSubmit = (query: string, attachedFile?: File | null, attachedText?: string | null) => {
     setInitialQuery(query);
+    setInitialFile(attachedFile ?? null);
+    setInitialExtractedText(attachedText ?? null);
     setChatHistory([]);
     setSelectedDbSessionId(null);
     setIsChatOpen(true);
@@ -26,6 +30,8 @@ export default function DashboardPage() {
     setChatHistory(messages);
     setSelectedDbSessionId(dbSessionId ?? null);
     setInitialQuery("");
+    setInitialFile(null);
+    setInitialExtractedText(null);
     setIsChatOpen(true);
   };
 
@@ -42,6 +48,8 @@ export default function DashboardPage() {
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         initialQuery={initialQuery}
+        initialAttachedFile={initialFile}
+        initialAttachedText={initialExtractedText}
         sessionMessages={chatHistory}
         dbSessionId={selectedDbSessionId}
       />

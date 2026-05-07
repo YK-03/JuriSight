@@ -30,9 +30,8 @@ export function ApplicableSections({ sections }: ApplicableSectionsProps) {
               </span>
               <div>
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {sec.title}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {sec.title !== sec.code ? sec.title : ""}
+                </p><p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {sec.relevance}
                 </p>
               </div>

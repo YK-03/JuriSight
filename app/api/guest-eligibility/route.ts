@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateAIResponse } from "@/lib/groq";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -51,8 +51,7 @@ Rules:
 - Apply Indian law and CrPC principles only.
 - The summary must be plain English with a maximum of 2 sentences.
 - Return exactly 2 riskFactors.
-- No markdown.
-- No extra text.
+- Return ONLY valid JSON. Do not include explanations, markdown, or extra text.
 - No keys other than those specified.`;
 
 function stripMarkdownFences(value: string) {
@@ -71,20 +70,20 @@ function stripMarkdownFences(value: string) {
   return cleaned.trim();
 }
 
+
 export async function POST(request: Request) {
+  let rawBody;
   try {
-    const rawBody = await request.json();
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  try {
     const parsedBody = guestEligibilityRequestSchema.safeParse(rawBody);
 
     if (!parsedBody.success) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY is not configured.");
-      return NextResponse.json({ error: "Failed to generate eligibility result." }, { status: 500 });
     }
 
     const prompt = [
@@ -97,25 +96,71 @@ export async function POST(request: Request) {
       `Description: ${parsedBody.data.description}`,
     ].join("\n");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-      },
-    });
+    const cacheKey = JSON.stringify(parsedBody.data);
+    let aiResponse;
+    try {
+      const fullPrompt = `${systemPrompt}\n\n${prompt}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
+      const rawText = await generateAIResponse(fullPrompt);
 
-    const generation = await model.generateContent(prompt);
-    const rawText = generation.response.text();
-    const cleanedText = stripMarkdownFences(rawText);
-    const parsedJson = JSON.parse(cleanedText);
+      let safeText = rawText;
+      const firstBrace = rawText.indexOf("{");
+      const lastBrace = rawText.lastIndexOf("}");
+
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        safeText = rawText.slice(firstBrace, lastBrace + 1);
+      }
+      
+      safeText = safeText.trim();
+
+      let parsed;
+      try {
+        parsed = JSON.parse(safeText);
+      } catch (err) {
+        throw new Error("Invalid JSON response from model");
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Invalid JSON structure");
+      }
+
+      if (!parsed.verdict || !Array.isArray(parsed.riskFactors)) {
+        throw new Error("Invalid JSON structure from model");
+      }
+
+      aiResponse = { success: true, text: safeText };
+    } catch (error) {
+      console.error("[Groq Error]", error);
+      aiResponse = { success: false, fallback: true };
+    }
+
+    if (!aiResponse.success || aiResponse.fallback) {
+      return NextResponse.json(
+        { success: false, fallback: true, message: aiResponse.message || "AI is currently under heavy load." },
+        { status: 200 }
+      );
+    }
+
+    const cleanedText = aiResponse.text as string;
+    let parsedJson;
+
+    try {
+      parsedJson = JSON.parse(cleanedText);
+    } catch (err) {
+      throw new Error("Invalid JSON response from model");
+    }
+    
+    if (!parsedJson || typeof parsedJson !== "object") {
+      throw new Error("Invalid JSON structure");
+    }
     const validatedResult = guestEligibilityResponseSchema.parse(parsedJson);
 
     return NextResponse.json(validatedResult);
-  } catch (error) {
-    console.error("Guest eligibility route failed:", error);
-    return NextResponse.json({ error: "Failed to generate eligibility result." }, { status: 500 });
+  } catch (e: any) {
+    console.error("[API ERROR]", e);
+
+    return NextResponse.json(
+      { success: false, fallback: true, message: "AI is currently under heavy load. Please try again shortly." },
+      { status: 200 }
+    );
   }
 }

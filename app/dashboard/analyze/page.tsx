@@ -240,12 +240,16 @@ function AnalyzeIntakeContent() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseDescription, caseId }),
+        body: JSON.stringify({ 
+          ...form,
+          whatHappened: trimmedNarrative,
+          caseId 
+        }),
       });
 
       const data: AnalyzeResponse = await response.json();
 
-      if (!response.ok || !data.analysis) {
+      if (!response.ok || data.success === false || !data.analysis) {
         throw new Error(data.error || "Unable to analyze this case right now.");
       }
 
@@ -443,16 +447,24 @@ function AnalyzeIntakeContent() {
 
             {submitError ? (
               <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-4 text-sm text-red-500">
-                {submitError}
+                <p>{submitError}</p>
+                <button
+                  type="submit"
+                  className="mt-3 text-xs font-semibold uppercase tracking-wider text-red-700 underline underline-offset-4 hover:text-red-800"
+                >
+                  Retry Analysis
+                </button>
               </div>
             ) : null}
 
-            <button
-              type="submit"
-              className="flex h-12 w-full items-center justify-center rounded-2xl bg-[#B8952A] px-5 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[#B8952A]/20"
-            >
-              Analyze Case
-            </button>
+            {!submitError && (
+              <button
+                type="submit"
+                className="flex h-12 w-full items-center justify-center rounded-2xl bg-[#B8952A] px-5 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[#B8952A]/20"
+              >
+                Analyze Case
+              </button>
+            )}
           </form>
         </div>
       </main>

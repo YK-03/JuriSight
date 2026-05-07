@@ -5,23 +5,28 @@ export async function getOrCreateUser() {
   const { userId } = await auth();
   if (!userId) return null;
 
-  let user = await db.user.findUnique({
-    where: { clerkId: userId },
-  });
-
-  if (!user) {
-    const clerkUser = await currentUser();
-    if (!clerkUser) return null;
-
-    user = await db.user.create({
-      data: {
-        clerkId: userId,
-        email: clerkUser.emailAddresses[0]?.emailAddress,
-        name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || null,
-        image: clerkUser.imageUrl,
-      },
+  try {
+    let user = await db.user.findUnique({
+      where: { clerkId: userId },
     });
-  }
 
-  return user;
+    if (!user) {
+      const clerkUser = await currentUser();
+      if (!clerkUser) return null;
+
+      user = await db.user.create({
+        data: {
+          clerkId: userId,
+          email: clerkUser.emailAddresses[0]?.emailAddress,
+          name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || null,
+          image: clerkUser.imageUrl,
+        },
+      });
+    }
+
+    return user;
+  } catch (error) {
+    console.error("[DB ERROR] getOrCreateUser failed:", error);
+    return null;
+  }
 }

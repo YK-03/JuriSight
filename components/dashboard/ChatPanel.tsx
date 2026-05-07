@@ -18,6 +18,8 @@ interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   initialQuery?: string;
+  initialAttachedFile?: File | null;
+  initialAttachedText?: string | null;
   sessionMessages?: ChatMessage[];
   dbSessionId?: string | null;
   caseId?: string | null;
@@ -166,6 +168,8 @@ export function ChatPanel({
   isOpen,
   onClose,
   initialQuery,
+  initialAttachedFile,
+  initialAttachedText,
   sessionMessages,
   dbSessionId: initialDbSessionId,
   caseId,
@@ -175,8 +179,12 @@ export function ChatPanel({
   const [loading, setLoading] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [dbSessionId, setDbSessionId] = useState<string | null>(initialDbSessionId ?? null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedText, setAttachedText] = useState<string | null>(null);
+  const [fileStatus, setFileStatus] = useState<"idle" | "extracting" | "ready" | "error">("idle");
   const autoSubmittedQueryRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const history = readStoredChatHistory();
@@ -228,13 +236,15 @@ export function ChatPanel({
   }, [messages, loading]);
 
   useEffect(() => {
-    if (!isOpen || !initialQuery?.trim() || loading) {
+    const trimmedInitialQuery = initialQuery?.trim() || "";
+    
+    if (!isOpen || (!trimmedInitialQuery && !initialAttachedText) || loading) {
       return;
     }
 
-    const trimmedInitialQuery = initialQuery.trim();
+    const submissionKey = `${trimmedInitialQuery}|${initialAttachedFile?.name || ""}|${initialAttachedFile?.size || ""}`;
 
-    if (autoSubmittedQueryRef.current === trimmedInitialQuery) {
+    if (autoSubmittedQueryRef.current === submissionKey) {
       return;
     }
 
@@ -242,13 +252,13 @@ export function ChatPanel({
     setActiveSessionId(null);
     setDbSessionId(null);
     setInputValue("");
-    autoSubmittedQueryRef.current = trimmedInitialQuery;
+    autoSubmittedQueryRef.current = submissionKey;
     const timer = window.setTimeout(() => {
-      void handleSendMessage(trimmedInitialQuery, []);
+      void handleSendMessage(trimmedInitialQuery, [], initialAttachedFile, initialAttachedText);
     }, 100);
 
     return () => window.clearTimeout(timer);
-  }, [initialQuery, isOpen, loading]);
+  }, [initialQuery, isOpen, loading, initialAttachedFile, initialAttachedText]);
 
   const handleNewChat = () => {
     const history = readStoredChatHistory();
@@ -262,17 +272,112 @@ export function ChatPanel({
     autoSubmittedQueryRef.current = null;
   };
 
-  const handleSendMessage = async (text: string, baseMessages = messages) => {
-    const trimmedText = text.trim();
-    if (!trimmedText || loading) {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (!file) {
       return;
     }
 
-    const userMessage = createChatMessage("user", trimmedText);
+    if (file.type !== "application/pdf") {
+      setAttachedFile(null);
+      setAttachedText(null);
+      setFileStatus("error");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setAttachedFile(null);
+      setAttachedText(null);
+      setFileStatus("error");
+      return;
+    }
+
+    setAttachedFile(file);
+    setAttachedText(null);
+    setFileStatus("extracting");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/extract-document", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data) {
+        setFileStatus("error");
+        return;
+      }
+
+      const extractedParts = [
+        data.title && `Title: ${data.title}`,
+        data.accusedName && `Accused: ${data.accusedName}`,
+        data.firNumber && `FIR: ${data.firNumber}`,
+        data.sections && `Sections: ${data.sections}`,
+        data.allegations && `Allegations: ${data.allegations}`,
+        data.policeStation && `Police Station: ${data.policeStation}`,
+        data.district && `District: ${data.district}`,
+        data.state && `State: ${data.state}`,
+        data.arrestDate && `Arrest Date: ${data.arrestDate}`,
+        data.custodyDuration && `Custody Duration: ${data.custodyDuration}`,
+        data.previousConvictions != null && `Previous Convictions: ${data.previousConvictions ? "Yes" : "No"}`,
+        data.notes && `Notes: ${data.notes}`,
+      ].filter(Boolean).join("\n");
+
+      setAttachedText(extractedParts || "Document processed but no content could be extracted.");
+      setFileStatus("ready");
+    } catch {
+      setFileStatus("error");
+    }
+  };
+
+  const clearAttachment = () => {
+    setAttachedFile(null);
+    setAttachedText(null);
+    setFileStatus("idle");
+  };
+
+  const handleSendMessage = async (
+    text: string, 
+    baseMessages = messages, 
+    overrideFile?: File | null, 
+    overrideText?: string | null
+  ) => {
+    const trimmedText = text.trim();
+    const currentFile = overrideFile !== undefined ? overrideFile : attachedFile;
+    const currentText = overrideText !== undefined ? overrideText : attachedText;
+
+    if ((!trimmedText && !currentText) || loading) {
+      return;
+    }
+
+    const displayText = currentFile && currentText
+      ? trimmedText
+        ? `📄 ${currentFile.name}\n\n${trimmedText}`
+        : `📄 ${currentFile.name}`
+      : trimmedText;
+
+    const contextText = currentText
+      ? trimmedText
+        ? `[Uploaded Document: ${currentFile?.name ?? "document.pdf"}]\n${currentText}\n\nUser question: ${trimmedText}`
+        : `[Uploaded Document: ${currentFile?.name ?? "document.pdf"}]\n${currentText}\n\nPlease analyze this document and provide key legal observations.`
+      : trimmedText;
+
+    const userMessage = createChatMessage("user", displayText);
+    const contextMessage = { ...userMessage, content: contextText };
     const nextVisibleMessages = [...baseMessages, userMessage];
+    const nextContextMessages = [...baseMessages, contextMessage];
 
     setMessages(nextVisibleMessages);
     setInputValue("");
+    clearAttachment();
     setLoading(true);
 
     try {
@@ -280,14 +385,14 @@ export function ChatPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: formatApiMessages(nextVisibleMessages),
+          messages: formatApiMessages(nextContextMessages),
           sessionId: dbSessionId,
           caseId,
         }),
       });
       const data = await response.json();
 
-      if (!response.ok || typeof data.reply !== "string") {
+      if (!response.ok || data.success === false || typeof data.reply !== "string") {
         throw new Error(data.error || "Failed to fetch");
       }
 
@@ -311,13 +416,13 @@ export function ChatPanel({
 
       saveHistory(flattenedHistory);
       setActiveSessionId(currentSession?.id ?? null);
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : "Unable to load a response right now.";
 
       setMessages((current) => [
         ...current,
-        createChatMessage("model", `Something went wrong - ${errorMessage}`),
+        createChatMessage("model", `Error: ${errorMessage}`),
       ]);
     } finally {
       setLoading(false);
@@ -396,7 +501,7 @@ export function ChatPanel({
               ) : (
                 <div
                   className={`max-w-[92%] text-sm leading-relaxed ${
-                    message.content.startsWith("Something went wrong")
+                    message.content.startsWith("Error:")
                       ? "text-red-500"
                       : "text-zinc-700 dark:text-zinc-300"
                   }`}
@@ -406,6 +511,21 @@ export function ChatPanel({
                       {line}
                     </p>
                   ))}
+                  {message.content.startsWith("Error:") && (
+                    <button
+                      onClick={() => {
+                        const userMsgs = messages.filter(m => m.role === "user");
+                        const lastUserMsg = userMsgs[userMsgs.length - 1];
+                        if (lastUserMsg) {
+                          setMessages(messages.slice(0, -1));
+                          void handleSendMessage(lastUserMsg.content, messages.slice(0, -2));
+                        }
+                      }}
+                      className="mt-2 text-xs font-semibold text-red-600 underline underline-offset-4 hover:text-red-700"
+                    >
+                      Retry sending
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -421,26 +541,75 @@ export function ChatPanel({
         <div ref={bottomRef} className="shrink-0" />
       </div>
 
-      <div className="relative shrink-0 border-t border-zinc-200 bg-white px-4 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <textarea
-          value={inputValue}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          disabled={loading}
-          className="min-h-[44px] max-h-[100px] w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-3 pr-12 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:disabled:bg-zinc-900"
-          placeholder="Ask about sections, procedure, or legal definitions..."
-          rows={1}
+      <div className="shrink-0 border-t border-zinc-200 bg-white px-4 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-900">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={handleFileChange}
         />
-        <button
-          onClick={() => void handleSendMessage(inputValue)}
-          disabled={!inputValue.trim() || loading}
-          className="absolute bottom-[18px] right-6 flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 transition-colors hover:bg-amber-600 focus:outline-none disabled:bg-zinc-100 dark:disabled:bg-zinc-800"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14" />
-            <path d="m12 5 7 7-7 7" />
-          </svg>
-        </button>
+
+        {attachedFile && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-500">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span className="flex-1 truncate text-xs text-zinc-600 dark:text-zinc-300">{attachedFile.name}</span>
+            {fileStatus === "extracting" && (
+              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[2px] border-zinc-300 border-t-amber-500" />
+            )}
+            {fileStatus === "ready" && (
+              <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Ready</span>
+            )}
+            {fileStatus === "error" && (
+              <span className="text-[10px] font-medium text-red-500">Failed</span>
+            )}
+            <button
+              type="button"
+              onClick={clearAttachment}
+              className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-200"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || fileStatus === "extracting"}
+            className="absolute bottom-[10px] left-3 flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus:outline-none disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+          <textarea
+            value={inputValue}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            disabled={loading}
+            className="min-h-[44px] max-h-[100px] w-full resize-none rounded-xl border border-zinc-200 bg-white py-3 pl-12 pr-12 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:disabled:bg-zinc-900"
+            placeholder="Describe a case, ask a legal question, or upload a document..."
+            rows={1}
+          />
+          <button
+            onClick={() => void handleSendMessage(inputValue)}
+            disabled={(!inputValue.trim() && fileStatus !== "ready") || loading || fileStatus === "extracting"}
+            className="absolute bottom-[10px] right-3 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 transition-colors hover:bg-amber-600 focus:outline-none disabled:bg-zinc-100 dark:disabled:bg-zinc-800"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

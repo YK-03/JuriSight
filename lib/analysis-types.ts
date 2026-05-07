@@ -1,20 +1,19 @@
 import type { Analysis } from "@prisma/client";
+import { buildSearchLink, normalizePrecedents, type Precedent } from "@/lib/precedents";
 
-/* ── public view model ─────────────────────────────────────────────── */
 export type AnalysisView = {
   id: string;
   eligibility: "ELIGIBLE" | "NOT_ELIGIBLE" | "UNCERTAIN";
-  riskScore: number; // 0–100
+  riskScore: number;
   legalBasis: string;
   reasoning: string;
   riskFactors: { label: string; value: number }[];
   conditions: string[];
-  precedents: { title: string; summary: string; similarity?: number }[];
+  precedents: Array<Precedent & { similarity?: number }>;
   biasWarning?: string;
   createdAt: string;
 };
 
-/* ── helpers ────────────────────────────────────────────────────────── */
 type RiskFactors = {
   flightRisk: string;
   offenseSeverity: string;
@@ -29,23 +28,20 @@ type LegalBasis = {
 };
 
 function levelToPercent(value: string): number {
-  const v = value.toUpperCase();
-  if (["LOW", "WEAK"].includes(v)) return 25;
-  if (["MEDIUM", "MODERATE"].includes(v)) return 55;
-  if (["HIGH", "STRONG"].includes(v)) return 80;
-  if (v === "SEVERE") return 95;
+  const normalized = value.toUpperCase();
+  if (["LOW", "WEAK"].includes(normalized)) return 25;
+  if (["MEDIUM", "MODERATE"].includes(normalized)) return 55;
+  if (["HIGH", "STRONG"].includes(normalized)) return 80;
+  if (normalized === "SEVERE") return 95;
   return 50;
 }
 
-function mapEligibility(
-  status: string,
-): "ELIGIBLE" | "NOT_ELIGIBLE" | "UNCERTAIN" {
+function mapEligibility(status: string): "ELIGIBLE" | "NOT_ELIGIBLE" | "UNCERTAIN" {
   if (status === "LIKELY_ELIGIBLE") return "ELIGIBLE";
   if (status === "LIKELY_INELIGIBLE") return "NOT_ELIGIBLE";
   return "UNCERTAIN";
 }
 
-/* ── adapter ────────────────────────────────────────────────────────── */
 export function mapPrismaAnalysis(a: Analysis): AnalysisView {
   const rf = a.riskFactors as unknown as RiskFactors;
   const lb = a.legalBasis as unknown as LegalBasis;
@@ -53,16 +49,24 @@ export function mapPrismaAnalysis(a: Analysis): AnalysisView {
   const legalBasisText = [
     `Classification: ${lb.classification === "NON_BAILABLE" ? "Non-Bailable Offense" : "Bailable Offense"}.`,
     `Primary Section: ${lb.primarySection || a.applicableSections[0] || "N/A"}.`,
-    lb.applicableSections.length > 0
-      ? `Applicable Laws: ${lb.applicableSections.join(", ")}.`
-      : "",
+    lb.applicableSections.length > 0 ? `Applicable Laws: ${lb.applicableSections.join(", ")}.` : "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  const precedentsRaw = a.precedents as unknown as
-    | { caseName?: string; title?: string; reason?: string; summary?: string; court?: string; year?: number; similarity?: number }[]
-    | null;
+  const precedentsRaw = a.precedents as unknown as Array<{
+    case?: string;
+    caseName?: string;
+    title?: string;
+    principle?: string;
+    reason?: string;
+    summary?: string;
+    relevance?: string;
+    searchLink?: string;
+    similarity?: number;
+  }> | null;
+
+  const normalizedPrecedents = normalizePrecedents(precedentsRaw);
 
   return {
     id: a.id,
@@ -77,17 +81,15 @@ export function mapPrismaAnalysis(a: Analysis): AnalysisView {
       { label: "Community Ties", value: levelToPercent(rf.communityTies) },
     ],
     conditions: a.suggestedConditions,
-    precedents: (precedentsRaw ?? []).map((p) => ({
-      title: p.caseName ?? p.title ?? "Untitled",
-      summary: p.reason ?? p.summary ?? "",
-      similarity: p.similarity,
+    precedents: normalizedPrecedents.map((precedent, index) => ({
+      ...precedent,
+      searchLink: precedent.searchLink || buildSearchLink(precedent.case),
+      similarity: precedentsRaw?.[index]?.similarity,
     })),
     biasWarning: a.biasWarning ?? undefined,
     createdAt: a.createdAt.toISOString(),
   };
 }
-
-/* ── new analysis flow types ────────────────────────────────────────── */
 
 export type Severity = "High" | "Medium" | "Low";
 export type Verdict = "Favorable" | "Unfavorable" | "Mixed";
@@ -96,6 +98,23 @@ export interface CaseAnalysis {
   verdict: Verdict;
   riskScore: number;
   summary: string;
+  riskBreakdown?: {
+    base: number;
+    riskContribution: number;
+    strengthReduction: number;
+    finalScore: number;
+  } | null;
+  analysis?: string[];
+  risks?: Array<{
+    text: string;
+    level: "LOW" | "MEDIUM" | "HIGH";
+  }>;
+  strengths?: Array<{
+    text: string;
+    impact: "LOW" | "MEDIUM" | "HIGH";
+  }>;
+  grounds?: string[];
+  courtNote?: string;
   riskFactors: Array<{
     label: string;
     severity: Severity;
@@ -107,21 +126,32 @@ export interface CaseAnalysis {
     title: string;
     relevance: string;
   }>;
-  precedents: Array<{
-    case: string;
-    citation: string;
-    relevance: string;
-  }>;
+  precedents: Precedent[];
   recommendations: string[];
   biasWarning: string | null;
 }
 
 export interface AnalyzeRequest {
+  caseTitle?: string;
+  whatHappened?: string;
+  when?: string;
+  incidentDate?: string;
+  where?: string;
+  incidentLocation?: string;
+  people?: string;
+  partiesInvolved?: string;
+  stage?: string;
+  proceduralStage?: string;
+  evidence?: string;
+  evidenceDetails?: string;
+  questions?: string;
+  legalQuestions?: string;
   caseDescription?: string;
   caseId?: string;
 }
 
 export interface AnalyzeResponse {
+  success?: boolean;
   analysis?: CaseAnalysis;
   error?: string;
 }

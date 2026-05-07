@@ -27,19 +27,26 @@ export async function GET() {
   });
 
   return NextResponse.json(
-    sessions.map((session) => ({
-      id: session.id,
-      title: session.title,
-      updatedAt: session.updatedAt.toISOString(),
-      caseId: session.caseId,
-      lastMessage: session.messages[0]
-        ? {
-            id: session.messages[0].id,
-            role: session.messages[0].role,
-            content: session.messages[0].content,
-            createdAt: session.messages[0].createdAt.toISOString(),
-          }
-        : null,
-    })),
+    sessions.map((session) => {
+      let displayTitle = session.title;
+      if (displayTitle.includes("You are JuriSight's legal awareness") || displayTitle.includes("You are JuriSight awareness")) {
+        displayTitle = "Document Analysis Session";
+      }
+
+      return {
+        id: session.id,
+        title: displayTitle,
+        updatedAt: session.updatedAt.toISOString(),
+        caseId: session.caseId,
+        lastMessage: session.messages[0]
+          ? {
+              id: session.messages[0].id,
+              role: session.messages[0].role,
+              content: session.messages[0].content,
+              createdAt: session.messages[0].createdAt.toISOString(),
+            }
+          : null,
+      };
+    }),
   );
 }
