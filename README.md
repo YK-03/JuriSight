@@ -27,12 +27,6 @@ It is designed for educational, research, and productivity purposes and is not i
 
 ---
 
-## Application Preview
-
-![JuriSight](public/jurisight.jpg)
-
----
-
 ## Technology Stack
 
 ### Frontend
