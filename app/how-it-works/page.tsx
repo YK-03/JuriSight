@@ -74,19 +74,19 @@ export default function HowItWorksPage() {
 
       {/* ── Navbar ───────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-7xl px-6 pt-6">
-        <div className="flex items-center justify-between gap-4">
+         <div className="flex items-center justify-between gap-4">
           <Logo />
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <Button variant="outline" size="sm" className="hidden sm:inline-flex border-amber-500/40 hover:bg-amber-500/10">
+                <Button variant="secondary" size="sm" className="hidden sm:inline-flex border-amber-500/40 hover:bg-amber-500/10">
                   Sign In
                 </Button>
               </SignInButton>
             </Show>
             <Show when="signed-in">
-              <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex border-amber-500/40 hover:bg-amber-500/10">
+              <Button asChild variant="secondary" size="sm" className="hidden sm:inline-flex border-amber-500/40 hover:bg-amber-500/10">
                 <Link href={"/dashboard" as Route}>Dashboard</Link>
               </Button>
               <UserButton />
@@ -162,15 +162,15 @@ export default function HowItWorksPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             {isSignedIn ? (
-              <Button asChild size="lg" className="inline-flex h-11 items-center rounded-md border border-amber-500/70 bg-amber-500 px-6 font-semibold text-white hover:brightness-105">
+              <Button asChild variant="primary" size="lg">
                 <Link href={"/dashboard" as Route}>Go to Dashboard →</Link>
               </Button>
             ) : (
-              <Button asChild size="lg" className="inline-flex h-11 items-center rounded-md border border-amber-500/70 bg-amber-500 px-6 font-semibold text-white hover:brightness-105">
+              <Button asChild variant="primary" size="lg">
                 <Link href={"/sign-up" as Route}>Get Started Free →</Link>
               </Button>
             )}
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="secondary" size="lg">
               <Link href={"/guest" as Route}>Try Free Eligibility Check</Link>
             </Button>
           </div>
@@ -194,11 +194,11 @@ export default function HowItWorksPage() {
             Analyzing your own case takes 30 seconds.
           </p>
           {isSignedIn ? (
-            <Button asChild size="sm" className="inline-flex items-center rounded-md border border-amber-500/70 bg-amber-500 px-4 font-semibold text-white hover:brightness-105 ml-auto">
+            <Button asChild variant="primary" size="sm" className="ml-auto">
               <Link href={"/dashboard" as Route}>Go to Dashboard →</Link>
             </Button>
           ) : (
-            <Button asChild size="sm" className="inline-flex items-center rounded-md border border-amber-500/70 bg-amber-500 px-4 font-semibold text-white hover:brightness-105 ml-auto">
+            <Button asChild variant="primary" size="sm" className="ml-auto">
               <Link href={"/sign-up" as Route}>Get Started Free →</Link>
             </Button>
           )}

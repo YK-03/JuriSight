@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, KeyboardEvent } from "react";
+import { Button } from "@/components/ui/button";
 
 interface HeroInputProps {
   onSubmit?: (query: string, attachedFile?: File | null, attachedText?: string | null) => void;
@@ -134,16 +135,18 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             {fileStatus === "error" && (
               <span className="text-[10px] font-medium text-red-500">Failed</span>
             )}
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={clearAttachment}
-              className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-200"
+              className="h-6 w-6 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" />
                 <path d="m6 6 12 12" />
               </svg>
-            </button>
+            </Button>
           </div>
         )}
         
@@ -155,11 +158,13 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             accept="application/pdf"
             onChange={handleFileChange}
           />
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={fileStatus === "extracting"}
-            className="p-3 text-text-secondary hover:text-[#B8952A] transition-colors rounded-xl hover:bg-[#B8952A]/10 focus:outline-none focus:ring-2 focus:ring-[#B8952A]/20 disabled:opacity-40"
+            className="text-text-secondary hover:text-[#B8952A]"
             title="Upload document"
           >
             <svg
@@ -176,7 +181,7 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             >
               <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
-          </button>
+          </Button>
           <textarea
             ref={textareaRef}
             value={description}
@@ -186,10 +191,12 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             placeholder="Describe a case, ask a legal question, or upload a document..."
             rows={1}
           />
-          <button
+          <Button
+            variant="primary"
+            size="icon"
             onClick={submitAnalysis}
             disabled={(!description.trim() && fileStatus !== "ready") || fileStatus === "extracting"}
-            className="p-3 bg-[#B8952A] text-white hover:brightness-110 disabled:opacity-50 disabled:hover:brightness-100 transition-all duration-300 rounded-xl shadow-sm ml-2 mb-1 focus:outline-none focus:ring-2 focus:ring-[#B8952A]/40 flex items-center justify-center"
+            className="ml-2 mb-1"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -206,7 +213,7 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
               <path d="M5 12h14" />
               <path d="m12 5 7 7-7 7" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
       <p className="text-[13px] text-text-secondary text-center px-4 font-mono tracking-[0.02em] uppercase">

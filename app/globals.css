@@ -15,6 +15,33 @@
   --border-default: 17 24 39;
   --border-hover: 17 24 39;
   --shadow-panel: 0 0 0 1px rgba(17, 24, 39, 0.06), 0 12px 30px rgba(17, 24, 39, 0.08);
+
+  /* Button Semantic Variables */
+  --btn-primary-bg: #FFFFFF;
+  --btn-primary-text: #111827;
+  --btn-primary-border: #E5E7EB;
+  --btn-primary-hover-bg: #FFF9EA;
+  --btn-primary-hover-border: #C8A64A;
+  --btn-primary-hover-text: #C8A64A;
+
+  --btn-secondary-bg: #FFFFFF;
+  --btn-secondary-text: #111827;
+  --btn-secondary-border: #E5E7EB;
+  --btn-secondary-hover-bg: #F3F4F6;
+  --btn-secondary-hover-border: #D1D5DB;
+  --btn-secondary-hover-text: #111827;
+
+  --btn-ghost-text: #6B7280;
+  --btn-ghost-hover-text: #111827;
+
+  --btn-destructive-bg: #FFFFFF;
+  --btn-destructive-text: #EF4444;
+  --btn-destructive-border: #FCA5A5;
+  --btn-destructive-hover-bg: #FEF2F2;
+  --btn-destructive-hover-border: #F87171;
+  --btn-destructive-hover-text: #DC2626;
+
+  --btn-focus-ring: rgba(200, 166, 74, 0.4);
 }
 
 .dark {
@@ -27,6 +54,33 @@
   --border-default: 255 255 255;
   --border-hover: 255 255 255;
   --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.35);
+
+  /* Button Semantic Variables - Dark Mode */
+  --btn-primary-bg: #13161B;
+  --btn-primary-text: #E8E4DA;
+  --btn-primary-border: #2A3039;
+  --btn-primary-hover-bg: #1F1A10;
+  --btn-primary-hover-border: #C8A64A;
+  --btn-primary-hover-text: #C8A64A;
+
+  --btn-secondary-bg: #13161B;
+  --btn-secondary-text: #E8E4DA;
+  --btn-secondary-border: #2A3039;
+  --btn-secondary-hover-bg: #1E232B;
+  --btn-secondary-hover-border: #3C4450;
+  --btn-secondary-hover-text: #E8E4DA;
+
+  --btn-ghost-text: #8A8780;
+  --btn-ghost-hover-text: #E8E4DA;
+
+  --btn-destructive-bg: #13161B;
+  --btn-destructive-text: #F87171;
+  --btn-destructive-border: #7F1D1D;
+  --btn-destructive-hover-bg: #450A0A;
+  --btn-destructive-hover-border: #DC2626;
+  --btn-destructive-hover-text: #F87171;
+
+  --btn-focus-ring: rgba(200, 166, 74, 0.4);
 }
 
 body {

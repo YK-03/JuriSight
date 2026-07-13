@@ -13,6 +13,7 @@ import {
   getLatestChatSession,
   parseStoredChatHistory,
 } from "@/lib/chat-storage";
+import { Button } from "@/components/ui/button";
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -456,28 +457,32 @@ export function ChatPanel({
               Definitions, sections, and procedure only
             </p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="rounded text-zinc-500 hover:text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="h-8 w-8 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.24em] text-zinc-400">JuriSight</span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={handleNewChat}
-            className="text-xs text-zinc-400 transition-colors hover:text-zinc-600 focus:outline-none dark:hover:text-zinc-300"
+            className="text-xs h-6 px-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
             New Chat
-          </button>
+          </Button>
         </div>
 
         <div className="rounded-2xl border border-[#B8952A]/15 bg-[#B8952A]/8 px-3 py-2 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
@@ -512,7 +517,9 @@ export function ChatPanel({
                     </p>
                   ))}
                   {message.content.startsWith("Error:") && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         const userMsgs = messages.filter(m => m.role === "user");
                         const lastUserMsg = userMsgs[userMsgs.length - 1];
@@ -521,10 +528,10 @@ export function ChatPanel({
                           void handleSendMessage(lastUserMsg.content, messages.slice(0, -2));
                         }
                       }}
-                      className="mt-2 text-xs font-semibold text-red-600 underline underline-offset-4 hover:text-red-700"
+                      className="mt-2 h-auto p-0 text-xs font-semibold text-red-600 underline underline-offset-4 hover:bg-transparent hover:text-red-700"
                     >
                       Retry sending
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -566,30 +573,34 @@ export function ChatPanel({
             {fileStatus === "error" && (
               <span className="text-[10px] font-medium text-red-500">Failed</span>
             )}
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={clearAttachment}
-              className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-200"
+              className="h-6 w-6 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" />
                 <path d="m6 6 12 12" />
               </svg>
-            </button>
+            </Button>
           </div>
         )}
 
         <div className="relative">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading || fileStatus === "extracting"}
-            className="absolute bottom-[10px] left-3 flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus:outline-none disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="absolute bottom-[10px] left-3 h-7 w-7 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
-          </button>
+          </Button>
           <textarea
             value={inputValue}
             onChange={handleInput}
@@ -599,16 +610,18 @@ export function ChatPanel({
             placeholder="Describe a case, ask a legal question, or upload a document..."
             rows={1}
           />
-          <button
+          <Button
+            variant="primary"
+            size="icon"
             onClick={() => void handleSendMessage(inputValue)}
             disabled={(!inputValue.trim() && fileStatus !== "ready") || loading || fileStatus === "extracting"}
-            className="absolute bottom-[10px] right-3 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 transition-colors hover:bg-amber-600 focus:outline-none disabled:bg-zinc-100 dark:disabled:bg-zinc-800"
+            className="absolute bottom-[10px] right-3 h-7 w-7"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14" />
               <path d="m12 5 7 7-7 7" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 type GuestEligibilityRequest = {
   crpcSection: string;
@@ -322,23 +323,16 @@ export default function GuestPage() {
 
             <div className="pt-1">
               {!result ? (
-                <button
+                <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-accent-gold/70 bg-accent-gold px-5 py-3.5 text-sm font-semibold text-bg-primary transition-all duration-300 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-80"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  loading={isLoading}
                 >
-                  {isLoading ? (
-                    <>
-                      <Spinner />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      Check Eligibility
-                      <ArrowIcon />
-                    </>
-                  )}
-                </button>
+                  Check Eligibility
+                  <ArrowIcon />
+                </Button>
               ) : null}
               {error ? <p className="mt-3 text-sm text-red-600">Something went wrong. Try again.</p> : null}
             </div>

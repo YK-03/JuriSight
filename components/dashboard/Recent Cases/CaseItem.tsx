@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+
 interface CaseItemProps {
   title: string;
   date: string;
@@ -69,13 +71,15 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
         </button>
 
         {onShare ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={(e) => {
               e.stopPropagation();
               onShare();
             }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/50 bg-bg-card text-text-secondary transition-colors hover:border-blue-500/30 hover:bg-blue-500/5 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="h-9 w-9 shrink-0 text-text-secondary hover:text-blue-500 hover:bg-blue-500/5"
             aria-label={`Share ${title}`}
             title="Copy share link"
           >
@@ -94,17 +98,19 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
               <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/>
               <line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
             </svg>
-          </button>
+          </Button>
         ) : null}
 
         {onDelete ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/50 bg-bg-card text-text-secondary transition-colors hover:border-red-500/30 hover:bg-red-500/5 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            className="h-9 w-9 shrink-0 text-text-secondary hover:text-red-500 hover:bg-red-500/5"
             aria-label={`Delete ${title}`}
             title="Delete"
           >
@@ -123,7 +129,7 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
               <path d="M10 11v6" />
               <path d="M14 11v6" />
             </svg>
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>

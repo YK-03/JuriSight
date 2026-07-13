@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { Button } from "@/components/ui/button";
 import type { AnalyzeResponse } from "@/lib/analysis-types";
 
 type CaseHistoryStatus = "Intake" | "Analyzing" | "Action needed" | "In progress" | "Educated";
@@ -278,15 +279,14 @@ function AnalyzeIntakeContent() {
         <DashboardHeader />
         <main className="w-full flex-1 px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-3xl flex-col gap-6">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-[#B8952A]"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              Back to dashboard
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="w-fit pl-0">
+              <Link href="/dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+                Back to dashboard
+              </Link>
+            </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-10 shadow-panel">
               <div className="mx-auto flex max-w-md flex-col items-center text-center">
                 <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#B8952A]/20 bg-[#B8952A]/10">
@@ -310,15 +310,14 @@ function AnalyzeIntakeContent() {
       <main className="w-full flex-1 px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-4xl flex-col gap-8">
           <div className="flex flex-col gap-4">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-[#B8952A]"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              Back to dashboard
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="w-fit pl-0">
+              <Link href="/dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+                Back to dashboard
+              </Link>
+            </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-8 shadow-panel">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#B8952A]">Case Intake</p>
               <h1 className="mt-3 text-3xl font-semibold text-text-primary">Analyze a new matter</h1>
@@ -448,22 +447,26 @@ function AnalyzeIntakeContent() {
             {submitError ? (
               <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-4 text-sm text-red-500">
                 <p>{submitError}</p>
-                <button
+                <Button
                   type="submit"
-                  className="mt-3 text-xs font-semibold uppercase tracking-wider text-red-700 underline underline-offset-4 hover:text-red-800"
+                  variant="destructive"
+                  size="sm"
+                  className="mt-3"
                 >
                   Retry Analysis
-                </button>
+                </Button>
               </div>
             ) : null}
 
             {!submitError && (
-              <button
+              <Button
                 type="submit"
-                className="flex h-12 w-full items-center justify-center rounded-2xl bg-[#B8952A] px-5 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[#B8952A]/20"
+                variant="primary"
+                size="lg"
+                className="w-full"
               >
                 Analyze Case
-              </button>
+              </Button>
             )}
           </form>
         </div>

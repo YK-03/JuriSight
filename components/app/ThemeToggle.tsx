@@ -3,6 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "../../lib/utils";
+import { Button } from "@/components/ui/button";
 
 export function ThemeToggle({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
@@ -19,12 +20,13 @@ export function ThemeToggle({ className }: { className?: string }) {
   }, []);
 
   if (!mounted) {
-    return <button className={cn("h-9 w-9 rounded-md border border-border bg-bg-card", className)} aria-label="Toggle theme" />;
+    return <Button variant="icon" className={className} aria-label="Toggle theme" />;
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="icon"
       aria-label="Toggle theme"
       onClick={() => {
         const next = !isDark;
@@ -32,10 +34,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         document.documentElement.classList.toggle("dark", next);
         localStorage.setItem("theme", next ? "dark" : "light");
       }}
-      className={cn(
-        "relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-bg-card text-text-secondary transition-all duration-300 hover:border-border-hover hover:text-text-primary",
-        className,
-      )}
+      className={className}
     >
       <Sun
         className={cn(
@@ -54,6 +53,6 @@ export function ThemeToggle({ className }: { className?: string }) {
             : "rotate-0 scale-100 opacity-100",
         )}
       />
-    </button>
+    </Button>
   );
 }

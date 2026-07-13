@@ -23,11 +23,11 @@ export default function LandingPage() {
             <ThemeToggle />
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <Button variant="outline" size="sm" className="hidden sm:inline-flex border-accent-gold/40 hover:bg-accent-gold/10">Sign In</Button>
+                <Button variant="secondary" size="sm" className="hidden sm:inline-flex border-accent-gold/40 hover:bg-accent-gold/10">Sign In</Button>
               </SignInButton>
             </Show>
             <Show when="signed-in">
-              <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex border-accent-gold/40 hover:bg-accent-gold/10">
+              <Button asChild variant="secondary" size="sm" className="hidden sm:inline-flex border-accent-gold/40 hover:bg-accent-gold/10">
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
               <UserButton />
@@ -41,10 +41,10 @@ export default function LandingPage() {
             <Lead className="mt-6 max-w-2xl">
               Case analysis, risk scoring, applicable IPC/BNS sections, legal precedents, and AI chat </Lead>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Button asChild size="lg" className="inline-flex h-11 items-center rounded-md border border-accent-gold/70 bg-accent-gold px-5 font-semibold text-bg-primary transition-all duration-300 hover:brightness-105">
+              <Button asChild variant="primary" size="lg">
                 <Link href={"/sign-up" as Route}>Get Started</Link>
               </Button>
-              <Button asChild variant="outline" size="lg">
+              <Button asChild variant="secondary" size="lg">
                 <Link href="/how-it-works">See How It Works</Link>
               </Button>
             </div>

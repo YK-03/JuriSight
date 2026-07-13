@@ -11,6 +11,7 @@ import { LegalReasoning } from "@/components/analysis/LegalReasoning";
 import { ApplicableSections } from "@/components/analysis/ApplicableSections";
 import { Precedents } from "@/components/analysis/Precedents";
 import { Recommendations } from "@/components/analysis/Recommendations";
+import { Button } from "@/components/ui/button";
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -72,26 +73,26 @@ export default function AnalysisPage() {
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-gray-50 dark:bg-gray-950 min-h-screen">
       <div className="flex items-center justify-between">
-        <Link 
-          href="/dashboard" 
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm flex items-center gap-1 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          Back to dashboard
-        </Link>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Back to dashboard
+          </Link>
+        </Button>
         <div className="flex items-center gap-2">
           {data.caseId && (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={handleShare}
-              className="relative flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                 <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
               </svg>
               {copied ? "Copied!" : "Share"}
-            </button>
+            </Button>
           )}
           <Badge
             variant="outline"

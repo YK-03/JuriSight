@@ -6,6 +6,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { Button } from "@/components/ui/button";
 
 type ViewState = "form" | "loading" | "result";
 type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
@@ -148,9 +149,12 @@ function BailStrategyPageContent() {
             : value === option.value;
 
           return (
-            <button
+            <Button
               key={option.value}
               type="button"
+              variant={selected ? "secondary" : "ghost"}
+              size="sm"
+              className={selected ? "border-accent-gold/50 bg-accent-gold/10 text-accent-gold hover:bg-accent-gold/10" : "border-border/60"}
               onClick={() => {
                 if (multi) {
                   const current = Array.isArray(value) ? value : [];
@@ -160,17 +164,11 @@ function BailStrategyPageContent() {
                   onChange(next);
                   return;
                 }
-
                 onChange(option.value);
               }}
-              className={`inline-flex min-h-10 items-center rounded-full border px-4 py-2 text-sm font-medium transition ${
-                selected
-                  ? "border-[#B8952A] bg-[#B8952A]/10 text-[#B8952A]"
-                  : "border-border/60 bg-bg-primary text-text-secondary hover:border-[#B8952A]/40 hover:text-text-primary"
-              }`}
             >
               {option.label}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -233,15 +231,14 @@ function BailStrategyPageContent() {
       <main className="w-full flex-1 px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-8">
           <div className="flex flex-col gap-4">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-[#B8952A]"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              Back to dashboard
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="w-fit pl-0">
+              <Link href="/dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+                Back to dashboard
+              </Link>
+            </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-8 shadow-panel">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#B8952A]">Bail Strategy System</p>
               <h1 className="mt-3 text-3xl font-semibold text-text-primary">Check bail eligibility with filing strategy</h1>
@@ -421,12 +418,14 @@ function BailStrategyPageContent() {
                   </div>
                 ) : null}
 
-                <button
+                <Button
                   type="submit"
-                  className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-[#B8952A] px-5 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-none focus:ring-4 focus:ring-[#B8952A]/20"
+                  variant="primary"
+                  size="lg"
+                  className="mt-6 w-full"
                 >
                   Check eligibility →
-                </button>
+                </Button>
               </section>
             </form>
           </section>
@@ -501,13 +500,14 @@ function BailStrategyPageContent() {
 
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <button
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="lg"
                       onClick={resetFormView}
-                      className="flex h-12 items-center justify-center rounded-2xl border border-border/60 bg-bg-primary px-5 text-sm font-semibold text-text-primary transition hover:border-[#B8952A]/50 hover:text-[#B8952A] focus:outline-none focus:ring-4 focus:ring-[#B8952A]/10"
                     >
                       Return to form
-                    </button>
+                    </Button>
                   </div>
                   <p className="mt-4 text-xs leading-5 text-text-secondary">
                     This structural analysis is for legal review. Bail outcomes depend heavily on specific case facts and judicial discretion.
