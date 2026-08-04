@@ -90,10 +90,17 @@ export default function HowItWorksPage() {
               </SignInButton>
             </Show>
             <Show when="signed-in">
-              <Button asChild variant="secondary" size="sm" className="hidden sm:inline-flex border-amber-500/40 hover:bg-amber-500/10">
+              <Button
+                asChild
+                variant="secondary"
+                size="md"
+                className="hidden min-w-[7.5rem] border-amber-500/50 font-semibold shadow-[0_4px_14px_rgba(17,24,39,0.06)] hover:bg-amber-500/10 sm:inline-flex"
+              >
                 <Link href={"/dashboard" as Route}>Dashboard</Link>
               </Button>
-              <UserButton />
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-500/45 bg-white p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-amber-500 hover:shadow-[0_6px_18px_rgba(245,158,11,0.2)] dark:bg-gray-950">
+                <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
+              </div>
             </Show>
           </div>
         </div>

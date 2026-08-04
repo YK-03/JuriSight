@@ -33,10 +33,17 @@ export default function LandingPage() {
               </SignInButton>
             </Show>
             <Show when="signed-in">
-              <Button asChild variant="secondary" size="sm" className="hidden sm:inline-flex border-accent-gold/40 hover:bg-accent-gold/10">
+              <Button
+                asChild
+                variant="secondary"
+                size="md"
+                className="hidden min-w-[7.5rem] border-accent-gold/50 font-semibold shadow-[0_4px_14px_rgba(17,24,39,0.06)] hover:bg-accent-gold/10 sm:inline-flex"
+              >
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
-              <UserButton />
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent-gold/45 bg-bg-card p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-accent-gold hover:shadow-[0_6px_18px_rgba(200,166,74,0.2)]">
+                <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
+              </div>
             </Show>
           </div>
         </div>
