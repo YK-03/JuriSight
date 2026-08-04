@@ -80,7 +80,11 @@ export default function HowItWorksPage() {
             <ThemeToggle />
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <Button variant="secondary" size="sm" className="hidden sm:inline-flex border-amber-500/40 hover:bg-amber-500/10">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="hidden min-w-[6.5rem] border-amber-500/40 font-semibold hover:bg-amber-500/10 sm:inline-flex"
+                >
                   Sign In
                 </Button>
               </SignInButton>

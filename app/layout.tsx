@@ -47,7 +47,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: themeInit }}
         />
       </head>
-      <body className={`${brand.variable} bg-bg-primary font-body text-text-primary antialiased`}>
+      <body
+        suppressHydrationWarning
+        className={`${brand.variable} bg-bg-primary font-body text-text-primary antialiased`}
+      >
         <ClerkProvider
           afterSignOutUrl="/"
           signInUrl="/sign-in"

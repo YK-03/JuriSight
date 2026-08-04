@@ -23,7 +23,13 @@ export default function LandingPage() {
             <ThemeToggle />
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <Button variant="secondary" size="sm" className="hidden sm:inline-flex border-accent-gold/40 hover:bg-accent-gold/10">Sign In</Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="hidden min-w-[6.5rem] border-accent-gold/40 font-semibold hover:bg-accent-gold/10 sm:inline-flex"
+                >
+                  Sign In
+                </Button>
               </SignInButton>
             </Show>
             <Show when="signed-in">
