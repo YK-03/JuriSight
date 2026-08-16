@@ -6,7 +6,7 @@ const groq = new Groq({
 
 export async function generateAIResponse(prompt: string) {
   const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
     messages: [
       {
         role: "user",
