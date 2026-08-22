@@ -118,29 +118,29 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
 
   return (
     <div className="w-full flex flex-col gap-4">
-      <div className="relative flex flex-col bg-bg-card border border-border/60 hover:border-[#B8952A]/40 shadow-panel rounded-2xl p-2 transition-all duration-300 focus-within:border-[#B8952A]/60 focus-within:ring-4 focus-within:ring-[#B8952A]/10">
+      <div className="relative flex flex-col bg-bg-card border border-border/60 hover:border-accent-gold/40 shadow-panel rounded-2xl p-2 transition-all duration-300 focus-within:border-accent-gold/60 focus-within:ring-4 focus-within:ring-accent-gold/10">
         {attachedFile && (
-          <div className="mx-2 mt-1 mb-2 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-500">
+          <div className="mx-2 mt-1 mb-2 flex items-center gap-2 rounded-lg border border-border bg-bg-secondary px-3 py-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent-gold">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span className="flex-1 truncate text-xs text-zinc-600 dark:text-zinc-300">{attachedFile.name}</span>
+            <span className="flex-1 truncate text-xs text-text-secondary">{attachedFile.name}</span>
             {fileStatus === "extracting" && (
-              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[2px] border-zinc-300 border-t-amber-500" />
+              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[2px] border-border border-t-accent-gold" />
             )}
             {fileStatus === "ready" && (
-              <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Ready</span>
+              <span className="text-[10px] font-medium text-state-success">Ready</span>
             )}
             {fileStatus === "error" && (
-              <span className="text-[10px] font-medium text-red-500">Failed</span>
+              <span className="text-[10px] font-medium text-state-error">Failed</span>
             )}
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={clearAttachment}
-              className="h-6 w-6 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+              className="h-6 w-6 p-1 text-text-secondary hover:text-text-primary"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" />
@@ -164,7 +164,7 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={fileStatus === "extracting"}
-            className="text-text-secondary hover:text-[#B8952A]"
+            className="text-text-secondary hover:text-accent-gold"
             title="Upload document"
           >
             <svg
@@ -217,7 +217,7 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
         </div>
       </div>
       <p className="text-[13px] text-text-secondary text-center px-4 font-mono tracking-[0.02em] uppercase">
-        JuriSight uses advanced AI. <span className="text-[#B8952A]/80">Verify critical legal information.</span>
+        JuriSight uses advanced AI. <span className="text-accent-gold">Verify critical legal information.</span>
       </p>
     </div>
   );

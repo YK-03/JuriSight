@@ -18,6 +18,26 @@ const STEPS = [
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { Route } from "next";
+import { useUser, SignInButton, Show, UserButton } from "@clerk/nextjs";
+import { Logo } from "@/components/app/Logo";
+import { ThemeToggle } from "@/components/app/ThemeToggle";
+import { Button } from "@/components/ui/button";
+
+const STEPS = [
+  {
+    number: "01",
+    title: "Describe the Case",
+    description:
+      "Enter the FIR details, charge sheet, or a plain-language summary of the matter. Upload FIRs, charge sheets, or reference cases using FIR/CNR details.",
+    detail: "Supports IPC, BNS, CrPC, and BNSS sections.",
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
       </svg>
     ),
   },
@@ -70,11 +90,11 @@ export default function HowItWorksPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <main className="min-h-screen bg-bg-primary text-text-primary">
 
       {/* ── Navbar ───────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-7xl px-6 pt-6">
-         <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <Logo />
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -83,7 +103,7 @@ export default function HowItWorksPage() {
                 <Button
                   variant="secondary"
                   size="md"
-                  className="hidden min-w-[6.5rem] border-amber-500/40 font-semibold hover:bg-amber-500/10 sm:inline-flex"
+                  className="hidden min-w-[6.5rem] border-accent-gold/40 font-semibold hover:bg-accent-gold/10 sm:inline-flex"
                 >
                   Sign In
                 </Button>
@@ -94,11 +114,11 @@ export default function HowItWorksPage() {
                 asChild
                 variant="secondary"
                 size="md"
-                className="hidden min-w-[7.5rem] border-amber-500/50 font-semibold shadow-[0_4px_14px_rgba(17,24,39,0.06)] hover:bg-amber-500/10 sm:inline-flex"
+                className="hidden min-w-[7.5rem] border-accent-gold/50 font-semibold shadow-[0_4px_14px_rgba(17,24,39,0.06)] hover:bg-accent-gold/10 sm:inline-flex"
               >
                 <Link href={"/dashboard" as Route}>Dashboard</Link>
               </Button>
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-500/45 bg-white p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-amber-500 hover:shadow-[0_6px_18px_rgba(245,158,11,0.2)] dark:bg-gray-950">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent-gold/45 bg-bg-card p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-accent-gold">
                 <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
               </div>
             </Show>
@@ -108,13 +128,13 @@ export default function HowItWorksPage() {
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-3xl px-6 pt-16 pb-12 text-center">
-        <span className="text-sm font-mono uppercase tracking-[0.28em] text-amber-500">
+        <span className="text-sm font-mono uppercase tracking-[0.28em] text-accent-gold">
           How It Works
         </span>
-        <h1 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+        <h1 className="mt-4 text-2xl font-bold text-text-primary sm:text-3xl">
           From case facts to actionable legal intelligence
         </h1>
-        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 max-w-xl mx-auto leading-relaxed">
+        <p className="mt-4 text-sm text-text-secondary max-w-xl mx-auto leading-relaxed">
           JuriSight is built for legal aid providers — NALSA lawyers, NGO paralegals, and public defenders — who need fast, structured analysis on undertrial matters.
         </p>
       </section>
@@ -124,24 +144,24 @@ export default function HowItWorksPage() {
         {/* ── 3-step flow ──────────────────────────────────────────────── */}
         <div className="relative">
           {/* Connector line */}
-          <div className="absolute left-8 top-10 bottom-10 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
+          <div className="absolute left-8 top-10 bottom-10 w-px bg-border hidden sm:block" />
 
           <div className="space-y-6">
             {STEPS.map((step) => (
               <div key={step.number} className="relative flex gap-6">
                 {/* Icon bubble */}
-                <div className="relative z-10 flex-shrink-0 w-16 h-16 rounded-2xl border border-amber-500/30 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <div className="relative z-10 flex-shrink-0 w-16 h-16 rounded-2xl border border-accent-gold/30 bg-accent-gold/10 flex items-center justify-center text-accent-gold">
                   {step.icon}
                 </div>
 
                 {/* Content */}
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm px-6 py-5 flex-1">
+                <div className="rounded-2xl border border-border bg-bg-card shadow-panel px-6 py-5 flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-xs font-mono text-amber-500 tracking-widest">{step.number}</span>
-                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">{step.title}</h2>
+                    <span className="text-xs font-mono text-accent-gold tracking-widest">{step.number}</span>
+                    <h2 className="text-base font-semibold text-text-primary">{step.title}</h2>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{step.description}</p>
-                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 font-medium">{step.detail}</p>
+                  <p className="text-sm text-text-secondary leading-relaxed">{step.description}</p>
+                  <p className="mt-2 text-xs text-accent-gold font-medium">{step.detail}</p>
                 </div>
               </div>
             ))}
@@ -150,25 +170,25 @@ export default function HowItWorksPage() {
 
         {/* ── Capabilities grid ────────────────────────────────────────── */}
         <div>
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-amber-500 mb-5">
-            What's included
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-accent-gold mb-5">
+            What&apos;s included
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {CAPABILITIES.map((cap) => (
-              <div key={cap.label} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm px-5 py-4">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{cap.label}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{cap.desc}</p>
+              <div key={cap.label} className="rounded-2xl border border-border bg-bg-card shadow-panel px-5 py-4">
+                <p className="text-sm font-semibold text-text-primary mb-1">{cap.label}</p>
+                <p className="text-xs text-text-secondary leading-relaxed">{cap.desc}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* ── CTA ──────────────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-8 text-center">
-          <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <div className="rounded-2xl border border-border bg-bg-card shadow-panel p-8 text-center">
+          <p className="text-lg font-semibold text-text-primary mb-2">
             Ready to analyze a case?
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          <p className="text-sm text-text-secondary mb-6">
             Full analysis takes under 30 seconds.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
@@ -188,20 +208,20 @@ export default function HowItWorksPage() {
         </div>
 
         {/* ── Disclaimer ───────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-6">
-          <span className="text-xs font-mono uppercase tracking-[0.2em] text-amber-500 block mb-2">
+        <div className="rounded-2xl border border-border bg-bg-card shadow-panel p-6">
+          <span className="text-xs font-mono uppercase tracking-[0.2em] text-accent-gold block mb-2">
             Disclaimer
           </span>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-text-secondary">
             JuriSight provides AI-assisted legal decision support for institutional review only. It is not legal advice, does not create an advocate-client relationship, and must not replace independent judicial or professional legal judgment.
           </p>
         </div>
       </div>
 
       {/* ── Sticky bottom bar ────────────────────────────────────────── */}
-      <div className={`fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-transform duration-300 ${showStickyBar ? "translate-y-0" : "translate-y-full"}`}>
+      <div className={`fixed bottom-0 inset-x-0 z-50 bg-bg-card border-t border-border shadow-panel transition-transform duration-300 ${showStickyBar ? "translate-y-0" : "translate-y-full"}`}>
         <div className="mx-auto max-w-5xl px-6 py-3 flex items-center justify-between gap-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
+          <p className="text-sm text-text-secondary hidden sm:block">
             Analyzing your own case takes 30 seconds.
           </p>
           {isSignedIn ? (
@@ -217,12 +237,12 @@ export default function HowItWorksPage() {
       </div>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-200 dark:border-gray-700 px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+      <footer className="border-t border-border px-6 py-8 text-center text-sm text-text-secondary">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 font-mono uppercase tracking-[0.16em]">
-          <span className="text-amber-500">JuriSight</span>
-          <span className="text-gray-400/60 dark:text-gray-500/60">&bull;</span>
+          <span className="text-accent-gold">JuriSight</span>
+          <span className="text-text-secondary/60">&bull;</span>
           <span>{currentYear}</span>
-          <span className="text-gray-400/60 dark:text-gray-500/60">&bull;</span>
+          <span className="text-text-secondary/60">&bull;</span>
           <span>All Rights Reserved</span>
         </div>
       </footer>

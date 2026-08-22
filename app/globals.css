@@ -16,13 +16,19 @@
   --border-hover: 17 24 39;
   --shadow-panel: 0 0 0 1px rgba(17, 24, 39, 0.06), 0 12px 30px rgba(17, 24, 39, 0.08);
 
+  /* Semantic Theme-Adaptive Tokens */
+  --accent-gold: 138 106 31;
+  --state-success: 21 128 61;
+  --state-warning: 180 83 9;
+  --state-error: 185 28 28;
+
   /* Button Semantic Variables */
-  --btn-primary-bg: #FFFFFF;
-  --btn-primary-text: #111827;
-  --btn-primary-border: #E5E7EB;
-  --btn-primary-hover-bg: #FFF9EA;
-  --btn-primary-hover-border: #C8A64A;
-  --btn-primary-hover-text: #C8A64A;
+  --btn-primary-bg: #111827;
+  --btn-primary-text: #FFFFFF;
+  --btn-primary-border: #111827;
+  --btn-primary-hover-bg: #1F2937;
+  --btn-primary-hover-border: #1F2937;
+  --btn-primary-hover-text: #FFFFFF;
 
   --btn-secondary-bg: #FFFFFF;
   --btn-secondary-text: #111827;
@@ -31,17 +37,18 @@
   --btn-secondary-hover-border: #D1D5DB;
   --btn-secondary-hover-text: #111827;
 
-  --btn-ghost-text: #6B7280;
+  --btn-ghost-text: #4B5563;
   --btn-ghost-hover-text: #111827;
+  --btn-ghost-hover-bg: rgba(17, 24, 39, 0.05);
 
   --btn-destructive-bg: #FFFFFF;
-  --btn-destructive-text: #EF4444;
+  --btn-destructive-text: #B91C1C;
   --btn-destructive-border: #FCA5A5;
   --btn-destructive-hover-bg: #FEF2F2;
   --btn-destructive-hover-border: #F87171;
-  --btn-destructive-hover-text: #DC2626;
+  --btn-destructive-hover-text: #991B1B;
 
-  --btn-focus-ring: rgba(200, 166, 74, 0.4);
+  --btn-focus-ring: rgba(138, 106, 31, 0.4);
 }
 
 .dark {
@@ -55,13 +62,19 @@
   --border-hover: 255 255 255;
   --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.35);
 
+  /* Semantic Theme-Adaptive Tokens - Dark Mode */
+  --accent-gold: 200 166 74;
+  --state-success: 46 204 138;
+  --state-warning: 224 160 48;
+  --state-error: 224 85 85;
+
   /* Button Semantic Variables - Dark Mode */
-  --btn-primary-bg: #13161B;
-  --btn-primary-text: #E8E4DA;
-  --btn-primary-border: #2A3039;
-  --btn-primary-hover-bg: #1F1A10;
-  --btn-primary-hover-border: #C8A64A;
-  --btn-primary-hover-text: #C8A64A;
+  --btn-primary-bg: #C8A64A;
+  --btn-primary-text: #07080A;
+  --btn-primary-border: #C8A64A;
+  --btn-primary-hover-bg: #D4B45B;
+  --btn-primary-hover-border: #D4B45B;
+  --btn-primary-hover-text: #07080A;
 
   --btn-secondary-bg: #13161B;
   --btn-secondary-text: #E8E4DA;
@@ -72,6 +85,7 @@
 
   --btn-ghost-text: #8A8780;
   --btn-ghost-hover-text: #E8E4DA;
+  --btn-ghost-hover-bg: rgba(255, 255, 255, 0.05);
 
   --btn-destructive-bg: #13161B;
   --btn-destructive-text: #F87171;
@@ -87,14 +101,14 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(56rem 30rem at 0% -12%, rgba(17, 24, 39, 0.04), transparent 58%),
-    radial-gradient(56rem 30rem at 100% 0%, rgba(201, 168, 76, 0.08), transparent 60%),
+    radial-gradient(56rem 30rem at 100% 0%, rgba(138, 106, 31, 0.08), transparent 60%),
     #f7f8fa;
   transition: background-color 320ms ease, color 320ms ease;
 }
 
 .dark body {
   background:
-    radial-gradient(80rem 40rem at 80% -5%, rgba(201, 168, 76, 0.12), transparent 55%),
+    radial-gradient(80rem 40rem at 80% -5%, rgba(200, 166, 74, 0.12), transparent 55%),
     radial-gradient(70rem 30rem at 0% 30%, rgba(255, 255, 255, 0.04), transparent 45%),
     #07080A;
 }
@@ -131,10 +145,10 @@ body {
 @keyframes disclaimer-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.2), 0 6px 18px rgba(201, 168, 76, 0.1);
+    box-shadow: 0 0 0 1px rgba(var(--accent-gold) / 0.2), 0 6px 18px rgba(var(--accent-gold) / 0.1);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.34), 0 10px 26px rgba(201, 168, 76, 0.16);
+    box-shadow: 0 0 0 1px rgba(var(--accent-gold) / 0.34), 0 10px 26px rgba(var(--accent-gold) / 0.16);
   }
 }
 
@@ -146,7 +160,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 0%, rgba(201, 168, 76, 0.14) 48%, transparent 100%);
+  background: linear-gradient(110deg, transparent 0%, rgba(var(--accent-gold) / 0.14) 48%, transparent 100%);
   animation: disclaimer-sheen 3.8s ease-in-out infinite;
   pointer-events: none;
 }
@@ -179,7 +193,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(140% 90% at 0% 0%, rgba(201, 168, 76, 0.18), transparent 60%);
+  background: radial-gradient(140% 90% at 0% 0%, rgba(var(--accent-gold) / 0.18), transparent 60%);
   opacity: 0;
   transition: opacity 260ms ease;
   pointer-events: none;
@@ -197,8 +211,8 @@ body {
 
 .fx-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(201, 168, 76, 0.55);
-  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.22), 0 12px 26px rgba(17, 24, 39, 0.12);
+  border-color: rgba(var(--accent-gold) / 0.55);
+  box-shadow: 0 0 0 1px rgba(var(--accent-gold) / 0.22), 0 12px 26px rgba(17, 24, 39, 0.12);
 }
 
 .fx-card:hover::before {
@@ -210,7 +224,7 @@ body {
 }
 
 .dark .fx-card:hover {
-  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.24), 0 16px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 1px rgba(var(--accent-gold) / 0.24), 0 16px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* ── Analysis page glass card ─────────────────────────────── */

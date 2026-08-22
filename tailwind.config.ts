@@ -16,16 +16,16 @@ const config: Config = {
           card: "rgb(var(--bg-card) / <alpha-value>)",
         },
         accent: {
-          gold: "#C9A84C",
+          gold: "rgb(var(--accent-gold) / <alpha-value>)",
         },
         text: {
           primary: "rgb(var(--text-primary) / <alpha-value>)",
           secondary: "rgb(var(--text-secondary) / <alpha-value>)",
         },
         state: {
-          success: "#2ECC8A",
-          error: "#E05555",
-          warning: "#E0A030",
+          success: "rgb(var(--state-success) / <alpha-value>)",
+          error: "rgb(var(--state-error) / <alpha-value>)",
+          warning: "rgb(var(--state-warning) / <alpha-value>)",
         },
         border: {
           DEFAULT: "rgb(var(--border-default) / 0.14)",

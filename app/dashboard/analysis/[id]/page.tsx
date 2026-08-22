@@ -76,10 +76,10 @@ export default function CaseAnalysisPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading analysis…</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent-gold" />
+          <p className="text-sm text-text-secondary">Loading analysis…</p>
         </div>
       </div>
     );
@@ -87,9 +87,9 @@ export default function CaseAnalysisPage() {
 
   if (error || !analysis) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">{error || "Analysis not found."}</p>
+          <p className="text-sm text-text-secondary">{error || "Analysis not found."}</p>
           <Button
             type="button"
             variant="secondary"
@@ -105,17 +105,17 @@ export default function CaseAnalysisPage() {
   const getVerdictColor = (verdict: string) => {
     switch (verdict) {
       case "Favorable":
-        return "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800";
+        return "bg-state-success/10 text-state-success border border-state-success/30";
       case "Unfavorable":
-        return "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800";
+        return "bg-state-error/10 text-state-error border border-state-error/30";
       case "Mixed":
       default:
-        return "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800";
+        return "bg-state-warning/10 text-state-warning border border-state-warning/30";
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-gray-50 dark:bg-gray-950 min-h-screen">
+    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-bg-primary text-text-primary min-h-screen">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard">
@@ -162,7 +162,7 @@ export default function CaseAnalysisPage() {
       <Recommendations recommendations={analysis.recommendations} />
 
       <footer className="pt-8 pb-4 text-center">
-        <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">
+        <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold">
           AI-generated. Verify with a licensed advocate.
         </p>
       </footer>

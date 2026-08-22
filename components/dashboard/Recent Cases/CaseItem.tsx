@@ -18,9 +18,9 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
       // Parse numeric score from badge text for color coding
       const score = parseInt(riskBadge, 10);
       if (!isNaN(score)) {
-        if (score >= 70) return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
-        if (score >= 40) return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
-        return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20";
+        if (score >= 70) return "bg-state-error/10 text-state-error border-state-error/20";
+        if (score >= 40) return "bg-state-warning/10 text-state-warning border-state-warning/20";
+        return "bg-state-success/10 text-state-success border-state-success/20";
       }
     }
 
@@ -79,7 +79,7 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
               e.stopPropagation();
               onShare();
             }}
-            className="h-9 w-9 shrink-0 text-text-secondary hover:text-blue-500 hover:bg-blue-500/5"
+            className="h-9 w-9 shrink-0 text-text-secondary hover:text-accent-gold hover:bg-accent-gold/10"
             aria-label={`Share ${title}`}
             title="Copy share link"
           >
@@ -110,7 +110,7 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
               e.stopPropagation();
               onDelete();
             }}
-            className="h-9 w-9 shrink-0 text-text-secondary hover:text-red-500 hover:bg-red-500/5"
+            className="h-9 w-9 shrink-0 text-text-secondary hover:text-state-error hover:bg-state-error/10"
             aria-label={`Delete ${title}`}
             title="Delete"
           >

@@ -50,10 +50,10 @@ export default function SharePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading shared analysis…</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent-gold" />
+          <p className="text-sm text-text-secondary">Loading shared analysis…</p>
         </div>
       </div>
     );
@@ -61,17 +61,17 @@ export default function SharePage() {
 
   if (error || !analysis) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-bg-secondary text-text-secondary">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>
             </svg>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{error || "Analysis not found."}</p>
+          <p className="text-sm text-text-secondary">{error || "Analysis not found."}</p>
           <Link
             href="/"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-accent-gold hover:underline"
           >
             Go to JuriSight →
           </Link>
@@ -83,19 +83,19 @@ export default function SharePage() {
   const getVerdictColor = (verdict: string) => {
     switch (verdict) {
       case "Favorable":
-        return "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800";
+        return "bg-state-success/10 text-state-success border border-state-success/30";
       case "Unfavorable":
-        return "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800";
+        return "bg-state-error/10 text-state-error border border-state-error/30";
       case "Mixed":
       default:
-        return "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800";
+        return "bg-state-warning/10 text-state-warning border border-state-warning/30";
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-gray-50 dark:bg-gray-950 min-h-screen">
+    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-bg-primary text-text-primary min-h-screen">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-text-secondary">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
@@ -127,12 +127,12 @@ export default function SharePage() {
       <Recommendations recommendations={analysis.recommendations} />
 
       <footer className="pt-8 pb-4 text-center space-y-2">
-        <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">
+        <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold">
           AI-generated. Verify with a licensed advocate.
         </p>
         <Link
           href="/"
-          className="inline-block text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          className="inline-block text-xs text-text-secondary hover:text-text-primary transition-colors"
         >
           Powered by JuriSight
         </Link>

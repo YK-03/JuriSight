@@ -41,21 +41,21 @@ export function CasePrecedents({ caseId }: { caseId: string }) {
               <div key={n} className="h-20 animate-pulse rounded-lg border border-border bg-bg-secondary" />
             ))
           : items?.map((item, index) => (
-              <div key={`${item.case}-${index}`} className="rounded-lg border border-[#E3E8EF] bg-white p-4">
+              <div key={`${item.case}-${index}`} className="rounded-lg border border-border bg-bg-card p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <a
                     href={item.searchLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-semibold text-[#0A2540] underline decoration-[#C7D2FE] underline-offset-4 hover:text-[#1D4ED8]"
+                    className="text-sm font-semibold text-text-primary underline decoration-accent-gold/40 underline-offset-4 hover:text-accent-gold"
                   >
                     {item.case}
                   </a>
-                  <span className="rounded bg-[#EFF6FF] px-2 py-1 font-mono text-[11px] text-[#1D4ED8]">
+                  <span className="rounded border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-mono text-[11px] text-accent-gold">
                     View Source
                   </span>
                 </div>
-                <p className="mt-2 text-[13px] text-[#425466]">{item.principle}</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">{item.principle}</p>
               </div>
             ))}
       </CardContent>

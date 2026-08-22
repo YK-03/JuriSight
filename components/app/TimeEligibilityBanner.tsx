@@ -1,4 +1,4 @@
-﻿import type { Case } from "@prisma/client";
+import type { Case } from "@prisma/client";
 
 const WarningIcon = () => (
   <svg
@@ -37,12 +37,12 @@ export function TimeEligibilityBanner({ data }: { data: Pick<Case, "dateOfArrest
   return (
     <div
       className={red
-        ? "flex items-center gap-3 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-5 py-4 text-[#991B1B]"
-        : "flex items-center gap-3 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-[#92400E]"}
+        ? "flex items-center gap-3 rounded-xl border border-state-error/30 bg-state-error/10 px-5 py-4 text-state-error"
+        : "flex items-center gap-3 rounded-xl border border-state-warning/30 bg-state-warning/10 px-5 py-4 text-state-warning"}
     >
       <WarningIcon />
-      <span className="font-mono text-xs">{percentText}%</span>
-      <p className="text-sm">
+      <span className="font-mono text-xs font-semibold">{percentText}%</span>
+      <p className="text-sm font-medium">
         {red
           ? `Undertrial has served ${percentText}% of maximum sentence - Eligible for bail consideration under S.436A CrPC`
           : `Undertrial has served ${percentText}% of maximum sentence - Approaching S.436A threshold`}

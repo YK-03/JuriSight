@@ -114,12 +114,12 @@ function formatCurrency(value: number) {
 
 function eligibilityBadgeClasses(value: Eligibility) {
   if (value === "Likely eligible") {
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
+    return "border-state-success/30 bg-state-success/10 text-state-success";
   }
   if (value === "Uncertain") {
-    return "border-amber-500/30 bg-amber-500/10 text-amber-700";
+    return "border-state-warning/30 bg-state-warning/10 text-state-warning";
   }
-  return "border-red-500/30 bg-red-500/10 text-red-700";
+  return "border-state-error/30 bg-state-error/10 text-state-error";
 }
 
 function BailStrategyPageContent() {
@@ -240,7 +240,7 @@ function BailStrategyPageContent() {
               </Link>
             </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-8 shadow-panel">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#B8952A]">Bail Strategy System</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent-gold">Bail Strategy System</p>
               <h1 className="mt-3 text-3xl font-semibold text-text-primary">Check bail eligibility with filing strategy</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-text-secondary">
                 Build a structured Indian-law bail brief covering custody posture, likely grounds, precedents, and the most suitable court strategy.
@@ -249,7 +249,7 @@ function BailStrategyPageContent() {
           </div>
 
           <section className={viewState === "form" ? "block" : "hidden"}>
-            <div className="rounded-2xl border border-[#B8952A]/25 bg-[#B8952A]/10 px-5 py-4 text-sm leading-6 text-text-primary">
+            <div className="rounded-2xl border border-accent-gold/25 bg-accent-gold/10 px-5 py-4 text-sm leading-6 text-text-primary">
               This tool supports legal preparation and internal review. Final advice and filings must be checked against the current statute, court record, and local practice.
             </div>
 
@@ -264,26 +264,26 @@ function BailStrategyPageContent() {
                   <label className="flex flex-col gap-2 md:col-span-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-text-primary">Court Name</span>
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8952A]">Required</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-gold">Required</span>
                     </div>
                     <input
                       value={form.courtName}
                       onChange={(event) => setForm((current) => ({ ...current, courtName: event.target.value }))}
                       placeholder="Sessions Judge, Saket Courts, New Delhi"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
                   <label className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-text-primary">Applicant Name</span>
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8952A]">Required</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-gold">Required</span>
                     </div>
                     <input
                       value={form.applicantName}
                       onChange={(event) => setForm((current) => ({ ...current, applicantName: event.target.value }))}
                       placeholder="Rajesh Kumar"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
@@ -293,7 +293,7 @@ function BailStrategyPageContent() {
                       value={form.fatherName}
                       onChange={(event) => setForm((current) => ({ ...current, fatherName: event.target.value }))}
                       placeholder="Shri Ram Kumar"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
@@ -303,7 +303,7 @@ function BailStrategyPageContent() {
                       value={form.address}
                       onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
                       placeholder="R-42, Lajpat Nagar, New Delhi - 110024"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
@@ -313,14 +313,14 @@ function BailStrategyPageContent() {
                       value={form.sections}
                       onChange={(event) => setForm((current) => ({ ...current, sections: event.target.value }))}
                       placeholder="IPC 420, CrPC 439, NDPS 37, BNSS equivalent"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
                   <div className="md:col-span-2">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="text-sm font-medium text-text-primary">Offense type</span>
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8952A]">Required</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-gold">Required</span>
                     </div>
                     <PillGroup
                       options={offenseOptions}
@@ -330,7 +330,7 @@ function BailStrategyPageContent() {
                         setError("");
                       }}
                     />
-                    {error && !form.offenseType ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+                    {error && !form.offenseType ? <p className="mt-3 text-sm text-state-error">{error}</p> : null}
                   </div>
 
                   <div className="md:col-span-2">
@@ -376,7 +376,7 @@ function BailStrategyPageContent() {
                       value={form.age}
                       onChange={(event) => setForm((current) => ({ ...current, age: event.target.value }))}
                       placeholder="24 / 68 / juvenile claim"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
@@ -386,7 +386,7 @@ function BailStrategyPageContent() {
                       value={form.firOrCnr}
                       onChange={(event) => setForm((current) => ({ ...current, firOrCnr: event.target.value }))}
                       placeholder="FIR 112/2026 or CNR DLCT01..."
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
@@ -396,7 +396,7 @@ function BailStrategyPageContent() {
                       value={form.policeStation}
                       onChange={(event) => setForm((current) => ({ ...current, policeStation: event.target.value }))}
                       placeholder="PS Hauz Khas, New Delhi"
-                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
 
@@ -407,13 +407,13 @@ function BailStrategyPageContent() {
                       onChange={(event) => setForm((current) => ({ ...current, additionalContext: event.target.value }))}
                       rows={5}
                       placeholder="Add charge-sheet timing, recovery status, co-accused parity, medical concerns, employment, or any fact affecting bail."
-                      className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-[#B8952A] focus:ring-4 focus:ring-[#B8952A]/10"
+                      className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
                     />
                   </label>
                 </div>
 
                 {error ? (
-                  <div className="mt-5 rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-4 text-sm text-red-600">
+                  <div className="mt-5 rounded-2xl border border-state-error/25 bg-state-error/10 px-5 py-4 text-sm text-state-error">
                     <p>{error}</p>
                   </div>
                 ) : null}
@@ -433,8 +433,8 @@ function BailStrategyPageContent() {
           <section className={viewState === "loading" ? "block" : "hidden"}>
             <div className="rounded-3xl border border-border/50 bg-bg-card px-6 py-20 shadow-panel">
               <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-[#B8952A]/20 bg-[#B8952A]/10">
-                  <svg viewBox="0 0 48 48" className="h-10 w-10 animate-spin text-[#B8952A]" fill="none">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-accent-gold/20 bg-accent-gold/10">
+                  <svg viewBox="0 0 48 48" className="h-10 w-10 animate-spin text-accent-gold" fill="none">
                     <circle cx="24" cy="24" r="18" stroke="currentColor" strokeWidth="4" opacity="0.2" />
                     <path d="M24 6a18 18 0 0 1 18 18" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
@@ -450,7 +450,7 @@ function BailStrategyPageContent() {
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#B8952A]">Eligibility check</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent-gold">Eligibility check</p>
                       <h2 className="mt-3 text-2xl font-semibold text-text-primary">Bail Eligibility Summary</h2>
                     </div>
                     <div className="flex flex-wrap gap-3">
@@ -478,7 +478,7 @@ function BailStrategyPageContent() {
                   <div className="mt-5 space-y-4">
                     {result.reasoning?.map((point, idx) => (
                       <div key={idx} className="flex gap-3">
-                        <span className="mt-2 h-2.5 w-2.5 flex-none rounded-full bg-[#B8952A]" />
+                        <span className="mt-2 h-2.5 w-2.5 flex-none rounded-full bg-accent-gold" />
                         <p className="text-sm font-medium leading-6 text-text-primary">{point}</p>
                       </div>
                     ))}
@@ -526,7 +526,7 @@ function BailStrategyFallback() {
     <DashboardShell>
       <DashboardHeader />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <svg viewBox="0 0 48 48" className="h-10 w-10 animate-spin text-[#B8952A]" fill="none">
+        <svg viewBox="0 0 48 48" className="h-10 w-10 animate-spin text-accent-gold" fill="none">
           <circle cx="24" cy="24" r="18" stroke="currentColor" strokeWidth="4" opacity="0.2" />
           <path d="M24 6a18 18 0 0 1 18 18" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
         </svg>

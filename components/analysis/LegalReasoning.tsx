@@ -11,9 +11,9 @@ export function LegalReasoning({ legalReasoning }: LegalReasoningProps) {
     .filter(Boolean);
 
   return (
-    <Card className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
-      <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-xs font-semibold tracking-widest text-gray-400 dark:text-gray-500 uppercase mb-4">
+    <Card className="rounded-2xl border border-border bg-bg-card shadow-panel">
+      <div className="px-5 py-4 border-b border-border">
+        <h3 className="text-xs font-semibold tracking-widest text-text-secondary uppercase mb-4">
           Legal Reasoning
         </h3>
       </div>
@@ -22,7 +22,7 @@ export function LegalReasoning({ legalReasoning }: LegalReasoningProps) {
           {paragraphs.map((paragraph, index) => (
             <p
               key={`${paragraph.slice(0, 24)}-${index}`}
-              className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4 last:mb-0"
+              className="text-sm text-text-primary leading-relaxed mb-4 last:mb-0"
             >
               {paragraph}
             </p>

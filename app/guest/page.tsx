@@ -41,38 +41,38 @@ const initialFormState: GuestEligibilityRequest = {
 
 function verdictClasses(verdict: Verdict) {
   if (verdict === "Bailable") {
-    return "border-green-200 bg-green-50 text-green-700";
+    return "border-state-success/30 bg-state-success/10 text-state-success";
   }
 
   if (verdict === "Non-Bailable") {
-    return "border-red-200 bg-red-50 text-red-700";
+    return "border-state-error/30 bg-state-error/10 text-state-error";
   }
 
-  return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-state-warning/30 bg-state-warning/10 text-state-warning";
 }
 
 function progressClasses(score: number) {
   if (score <= 40) {
-    return "bg-green-500";
+    return "bg-state-success";
   }
 
   if (score <= 70) {
-    return "bg-amber-500";
+    return "bg-state-warning";
   }
 
-  return "bg-red-500";
+  return "bg-state-error";
 }
 
 function severityClasses(severity: RiskSeverity) {
   if (severity === "HIGH") {
-    return "border-red-200 bg-red-50 text-red-700";
+    return "border-state-error/30 bg-state-error/10 text-state-error";
   }
 
   if (severity === "MEDIUM") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
+    return "border-state-warning/30 bg-state-warning/10 text-state-warning";
   }
 
-  return "border-green-200 bg-green-50 text-green-700";
+  return "border-state-success/30 bg-state-success/10 text-state-success";
 }
 
 function Spinner() {
@@ -155,17 +155,17 @@ export default function GuestPage() {
   }
 
   const fieldClassName =
-    "h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100";
+    "h-11 w-full rounded-xl border border-border bg-bg-card px-3 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/10";
   const areaClassName =
-    "w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100";
+    "w-full rounded-xl border border-border bg-bg-card px-3 py-3 text-sm text-text-primary outline-none transition placeholder:text-text-secondary focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/10";
 
   return (
-    <main className="min-h-screen bg-stone-50">
+    <main className="min-h-screen bg-bg-primary text-text-primary">
       <div className="mx-auto max-w-4xl px-6 py-16">
         <div className="mx-auto max-w-2xl text-center">
           <Link
             href={"/" as Route}
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#C9A84C] transition hover:text-amber-600"
+            className="inline-flex items-center gap-2 text-sm font-medium text-accent-gold transition hover:text-accent-gold/80"
           >
             <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none">
               <path
@@ -178,29 +178,29 @@ export default function GuestPage() {
             </svg>
             Back to JuriSight
           </Link>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-[#C9A84C]">
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-accent-gold">
             Guest Bail Eligibility
           </p>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
             Check bail eligibility instantly
           </h1>
-          <p className="mt-4 text-sm leading-7 text-gray-600 sm:text-base">
+          <p className="mt-4 text-sm leading-7 text-text-secondary sm:text-base">
             Enter core case details to receive a quick bail eligibility assessment under Indian criminal procedure.
           </p>
         </div>
 
-        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-amber-100 bg-amber-50/70 p-4">
-          <p className="text-sm font-semibold text-amber-700">Public guest mode</p>
-          <p className="mt-1 text-sm leading-6 text-amber-800/80">
+        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-state-warning/30 bg-state-warning/10 p-4">
+          <p className="text-sm font-semibold text-state-warning">Public guest mode</p>
+          <p className="mt-1 text-sm leading-6 text-text-primary">
             This assessment is informational and does not replace legal advice. Sign in to unlock the full analysis flow in your dashboard.
           </p>
         </div>
 
-        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-border bg-bg-card p-6 shadow-panel sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label htmlFor="crpcSection" className="mb-2 block text-sm font-medium text-gray-900">
+                <label htmlFor="crpcSection" className="mb-2 block text-sm font-medium text-text-primary">
                   CrPC Section
                 </label>
                 <select
@@ -220,7 +220,7 @@ export default function GuestPage() {
               </div>
 
               <div>
-                <label htmlFor="offenseType" className="mb-2 block text-sm font-medium text-gray-900">
+                <label htmlFor="offenseType" className="mb-2 block text-sm font-medium text-text-primary">
                   Offense Type
                 </label>
                 <select
@@ -244,7 +244,7 @@ export default function GuestPage() {
               </div>
 
               <div>
-                <label htmlFor="accusedProfile" className="mb-2 block text-sm font-medium text-gray-900">
+                <label htmlFor="accusedProfile" className="mb-2 block text-sm font-medium text-text-primary">
                   Accused Profile
                 </label>
                 <select
@@ -265,7 +265,7 @@ export default function GuestPage() {
               </div>
 
               <div>
-                <label htmlFor="priorRecord" className="mb-2 block text-sm font-medium text-gray-900">
+                <label htmlFor="priorRecord" className="mb-2 block text-sm font-medium text-text-primary">
                   Prior Record
                 </label>
                 <select
@@ -286,7 +286,7 @@ export default function GuestPage() {
             </div>
 
             <div>
-              <label htmlFor="cooperationLevel" className="mb-2 block text-sm font-medium text-gray-900">
+              <label htmlFor="cooperationLevel" className="mb-2 block text-sm font-medium text-text-primary">
                 Cooperation Level
               </label>
               <select
@@ -305,7 +305,7 @@ export default function GuestPage() {
             </div>
 
             <div>
-              <label htmlFor="description" className="mb-2 block text-sm font-medium text-gray-900">
+              <label htmlFor="description" className="mb-2 block text-sm font-medium text-text-primary">
                 Brief Description
               </label>
               <textarea
@@ -334,30 +334,30 @@ export default function GuestPage() {
                   <ArrowIcon />
                 </Button>
               ) : null}
-              {error ? <p className="mt-3 text-sm text-red-600">Something went wrong. Try again.</p> : null}
+              {error ? <p className="mt-3 text-sm text-state-error">Something went wrong. Try again.</p> : null}
             </div>
           </form>
         </div>
 
         {result ? (
-          <section className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+          <section className="mx-auto mt-8 max-w-3xl rounded-xl border border-border bg-bg-card p-6 shadow-panel sm:p-8">
             <div
               className={`w-full rounded-full border px-4 py-3 text-center text-sm font-semibold uppercase tracking-widest ${verdictClasses(result.verdict)}`}
             >
               {result.verdict}
             </div>
 
-            <div className="mt-6 rounded-xl border border-gray-100 bg-stone-50 p-4">
+            <div className="mt-6 rounded-xl border border-border bg-bg-secondary p-4">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-secondary">
                     Risk Score
                   </p>
-                  <p className="mt-2 text-3xl font-semibold text-gray-900">{result.riskScore}</p>
+                  <p className="mt-2 text-3xl font-semibold text-text-primary">{result.riskScore}</p>
                 </div>
-                <p className="text-sm text-gray-500">0 to 100</p>
+                <p className="text-sm text-text-secondary">0 to 100</p>
               </div>
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-200">
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-border/40">
                 <div
                   className={`h-full rounded-full transition-all ${progressClasses(result.riskScore)}`}
                   style={{ width: `${Math.max(0, Math.min(100, result.riskScore))}%` }}
@@ -366,19 +366,19 @@ export default function GuestPage() {
             </div>
 
             <div className="mt-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Summary</p>
-              <p className="mt-3 text-sm leading-relaxed text-gray-700">{result.summary}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-secondary">Summary</p>
+              <p className="mt-3 text-sm leading-relaxed text-text-primary">{result.summary}</p>
             </div>
 
             <div className="mt-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Risk Factors</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-secondary">Risk Factors</p>
               <div className="mt-3 flex flex-wrap gap-3">
                 {result.riskFactors.map((factor) => (
                   <div
                     key={`${factor.label}-${factor.severity}`}
-                    className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2"
+                    className="flex items-center gap-2 rounded-full border border-border bg-bg-primary px-3 py-2"
                   >
-                    <span className="text-sm font-medium text-gray-800">{factor.label}</span>
+                    <span className="text-sm font-medium text-text-primary">{factor.label}</span>
                     <span
                       className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${severityClasses(factor.severity)}`}
                     >
@@ -390,39 +390,39 @@ export default function GuestPage() {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-gray-100 bg-stone-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+              <div className="rounded-xl border border-border bg-bg-secondary p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-secondary">
                   Applicable Section
                 </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">{result.crpcSection}</p>
+                <p className="mt-2 text-sm font-medium text-text-primary">{result.crpcSection}</p>
               </div>
 
-              <div className="rounded-xl border border-gray-100 bg-stone-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">
+              <div className="rounded-xl border border-border bg-bg-secondary p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-text-secondary">
                   One Recommendation
                 </p>
-                <p className="mt-2 text-sm leading-6 text-gray-800">{result.oneRecommendation}</p>
+                <p className="mt-2 text-sm leading-6 text-text-primary">{result.oneRecommendation}</p>
               </div>
             </div>
 
-            <div className="relative mt-5 overflow-hidden rounded-xl border border-gray-100 bg-stone-50 p-4">
+            <div className="relative mt-5 overflow-hidden rounded-xl border border-border bg-bg-secondary p-4">
               <div className="space-y-3 blur-sm opacity-50">
-                <div className="h-3 w-11/12 rounded-full bg-gray-300" />
-                <div className="h-3 w-10/12 rounded-full bg-gray-300" />
-                <div className="h-3 w-9/12 rounded-full bg-gray-300" />
+                <div className="h-3 w-11/12 rounded-full bg-border" />
+                <div className="h-3 w-10/12 rounded-full bg-border" />
+                <div className="h-3 w-9/12 rounded-full bg-border" />
               </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-white/45 text-center">
-                <p className="px-6 text-sm font-semibold text-gray-800">
+              <div className="absolute inset-0 flex items-center justify-center bg-bg-card/70 text-center">
+                <p className="px-6 text-sm font-semibold text-text-primary">
                   3 more recommendations - Sign in for full report
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50/70 p-4">
+            <div className="mt-6 rounded-xl border border-state-warning/30 bg-state-warning/10 p-4">
               {isSignedIn ? (
                 <Link
                   href={"/dashboard" as Route}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] transition hover:text-amber-600"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-accent-gold transition hover:text-accent-gold/80"
                 >
                   View full analysis in Dashboard
                   <ArrowIcon />
@@ -431,14 +431,14 @@ export default function GuestPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
                   <Link
                     href={"/sign-in" as Route}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] transition hover:text-amber-600"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-accent-gold transition hover:text-accent-gold/80"
                   >
                     Sign in to see full risk breakdown
                     <ArrowIcon />
                   </Link>
                   <Link
                     href={"/sign-up" as Route}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 transition hover:text-[#C9A84C]"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary transition hover:text-accent-gold"
                   >
                     Create free account
                     <ArrowIcon />

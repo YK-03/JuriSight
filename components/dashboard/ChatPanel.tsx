@@ -445,15 +445,15 @@ export function ChatPanel({
 
   return (
     <div
-      className={`fixed right-0 top-0 z-50 flex h-screen w-[400px] max-w-full flex-col border-l border-zinc-200 bg-white transition-transform duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${
+      className={`fixed right-0 top-0 z-50 flex h-screen w-[400px] max-w-full flex-col border-l border-border bg-bg-card transition-transform duration-300 ${
         isOpen ? "translate-x-0" : "translate-x-full"
       }`}
     >
-      <div className="shrink-0 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="shrink-0 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Legal awareness assistant</h2>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <h2 className="text-sm font-medium text-text-primary">Legal awareness assistant</h2>
+            <p className="mt-1 text-xs text-text-secondary">
               Definitions, sections, and procedure only
             </p>
           </div>
@@ -461,7 +461,7 @@ export function ChatPanel({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="h-8 w-8 text-text-secondary hover:text-text-primary"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18" />
@@ -473,24 +473,24 @@ export function ChatPanel({
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-[0.24em] text-zinc-400">JuriSight</span>
+          <span className="text-[10px] uppercase tracking-[0.24em] text-text-secondary">JuriSight</span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={handleNewChat}
-            className="text-xs h-6 px-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            className="text-xs h-6 px-2 text-text-secondary hover:text-text-primary"
           >
             New Chat
           </Button>
         </div>
 
-        <div className="rounded-2xl border border-[#B8952A]/15 bg-[#B8952A]/8 px-3 py-2 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+        <div className="rounded-2xl border border-accent-gold/20 bg-accent-gold/10 px-3 py-2 text-xs leading-5 text-text-primary">
           This assistant does not perform case analysis or legal advice. Use Analyze Case for matter-specific evaluation.
         </div>
 
         <div className="flex flex-col items-start">
-          <div className="max-w-[92%] text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+          <div className="max-w-[92%] text-sm leading-relaxed text-text-primary">
             {GREETING}
           </div>
         </div>
@@ -500,15 +500,15 @@ export function ChatPanel({
           return (
             <div key={message.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
               {isUser ? (
-                <div className="ml-auto max-w-[85%] rounded-2xl bg-amber-50 px-4 py-2 text-sm text-zinc-800 dark:bg-amber-950 dark:text-zinc-100">
+                <div className="ml-auto max-w-[85%] rounded-2xl bg-accent-gold/15 border border-accent-gold/25 px-4 py-2 text-sm text-text-primary">
                   {message.content}
                 </div>
               ) : (
                 <div
                   className={`max-w-[92%] text-sm leading-relaxed ${
                     message.content.startsWith("Error:")
-                      ? "text-red-500"
-                      : "text-zinc-700 dark:text-zinc-300"
+                      ? "text-state-error"
+                      : "text-text-primary"
                   }`}
                 >
                   {message.content.split("\n").map((line, index) => (
@@ -528,7 +528,7 @@ export function ChatPanel({
                           void handleSendMessage(lastUserMsg.content, messages.slice(0, -2));
                         }
                       }}
-                      className="mt-2 h-auto p-0 text-xs font-semibold text-red-600 underline underline-offset-4 hover:bg-transparent hover:text-red-700"
+                      className="mt-2 h-auto p-0 text-xs font-semibold text-state-error underline underline-offset-4 hover:bg-transparent"
                     >
                       Retry sending
                     </Button>
@@ -541,14 +541,14 @@ export function ChatPanel({
 
         {loading ? (
           <div className="flex items-start">
-            <div className="text-lg tracking-widest text-zinc-400 animate-pulse">...</div>
+            <div className="text-lg tracking-widest text-text-secondary animate-pulse">...</div>
           </div>
         ) : null}
 
         <div ref={bottomRef} className="shrink-0" />
       </div>
 
-      <div className="shrink-0 border-t border-zinc-200 bg-white px-2 pb-3 pt-2 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="shrink-0 border-t border-border bg-bg-card px-2 pb-3 pt-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -558,27 +558,27 @@ export function ChatPanel({
         />
 
         {attachedFile && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-500">
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-bg-secondary px-3 py-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent-gold">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span className="flex-1 truncate text-xs text-zinc-600 dark:text-zinc-300">{attachedFile.name}</span>
+            <span className="flex-1 truncate text-xs text-text-secondary">{attachedFile.name}</span>
             {fileStatus === "extracting" && (
-              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[2px] border-zinc-300 border-t-amber-500" />
+              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[2px] border-border border-t-accent-gold" />
             )}
             {fileStatus === "ready" && (
-              <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Ready</span>
+              <span className="text-[10px] font-medium text-state-success">Ready</span>
             )}
             {fileStatus === "error" && (
-              <span className="text-[10px] font-medium text-red-500">Failed</span>
+              <span className="text-[10px] font-medium text-state-error">Failed</span>
             )}
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={clearAttachment}
-              className="h-6 w-6 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+              className="h-6 w-6 p-1 text-text-secondary hover:text-text-primary"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" />
@@ -588,14 +588,14 @@ export function ChatPanel({
           </div>
         )}
 
-        <div className="flex items-end gap-1 rounded-xl border border-zinc-200 bg-white focus-within:border-amber-500/50 focus-within:ring-2 focus-within:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-end gap-1 rounded-xl border border-border bg-bg-secondary focus-within:border-accent-gold/60 focus-within:ring-2 focus-within:ring-accent-gold/20">
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading || fileStatus === "extracting"}
-            className="mb-[9px] ml-1 h-7 w-7 shrink-0 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="mb-[9px] ml-1 h-7 w-7 shrink-0 text-text-secondary hover:text-text-primary"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -606,7 +606,7 @@ export function ChatPanel({
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            className="min-h-[56px] max-h-[120px] flex-1 resize-none bg-transparent py-3 px-2 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:disabled:bg-transparent"
+            className="min-h-[56px] max-h-[120px] flex-1 resize-none bg-transparent py-3 px-2 text-sm leading-relaxed text-text-primary outline-none placeholder:text-text-secondary dark:disabled:bg-transparent"
             placeholder="Describe a case, ask a legal question, or upload a document..."
             rows={1}
           />
