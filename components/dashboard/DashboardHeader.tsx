@@ -1,5 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 import { Logo } from "../app/Logo";
+import { ThemeToggle } from "../app/ThemeToggle";
 
 export function DashboardHeader() {
   return (
@@ -7,6 +8,7 @@ export function DashboardHeader() {
       <div className="container max-w-5xl mx-auto flex h-16 items-center justify-between px-4">
         <Logo compact />
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <span className="hidden text-xs font-mono uppercase tracking-[0.16em] text-text-secondary sm:inline">
             Your workspace
           </span>

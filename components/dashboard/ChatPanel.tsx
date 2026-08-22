@@ -548,7 +548,7 @@ export function ChatPanel({
         <div ref={bottomRef} className="shrink-0" />
       </div>
 
-      <div className="shrink-0 border-t border-zinc-200 bg-white px-4 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="shrink-0 border-t border-zinc-200 bg-white px-2 pb-3 pt-2 dark:border-zinc-800 dark:bg-zinc-900">
         <input
           ref={fileInputRef}
           type="file"
@@ -588,14 +588,14 @@ export function ChatPanel({
           </div>
         )}
 
-        <div className="relative">
+        <div className="flex items-end gap-1 rounded-xl border border-zinc-200 bg-white focus-within:border-amber-500/50 focus-within:ring-2 focus-within:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-900">
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading || fileStatus === "extracting"}
-            className="absolute bottom-[10px] left-3 h-7 w-7 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="mb-[9px] ml-1 h-7 w-7 shrink-0 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -606,7 +606,7 @@ export function ChatPanel({
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            className="min-h-[44px] max-h-[100px] w-full resize-none rounded-xl border border-zinc-200 bg-white py-3 pl-12 pr-12 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:disabled:bg-zinc-900"
+            className="min-h-[56px] max-h-[120px] flex-1 resize-none bg-transparent py-3 px-2 text-sm leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:disabled:bg-transparent"
             placeholder="Describe a case, ask a legal question, or upload a document..."
             rows={1}
           />
@@ -615,7 +615,7 @@ export function ChatPanel({
             size="icon"
             onClick={() => void handleSendMessage(inputValue)}
             disabled={(!inputValue.trim() && fileStatus !== "ready") || loading || fileStatus === "extracting"}
-            className="absolute bottom-[10px] right-3 h-7 w-7"
+            className="mb-[9px] mr-1 h-7 w-7 shrink-0"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14" />
