@@ -17,7 +17,7 @@ function getRiskScore(analysis: {
     return Math.max(0, Math.min(100, Math.round(rawRiskScore)));
   }
 
-  return Math.max(0, Math.min(100, analysis.riskScore * 10));
+  return Math.max(0, Math.min(100, analysis.riskScore));
 }
 
 function getRecommendation(analysis: {

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
 import { z } from "zod";
 import db from "@/lib/db";
+import { generateAIResponse } from "@/lib/groq";
 import { buildFallbackPrecedents, normalizePrecedents, PrecedentsSchema } from "@/lib/precedents";
 import { getOrCreateUser } from "@/lib/user-sync";
 
@@ -30,33 +29,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ precedents: storedPrecedents });
     }
 
-    const { text } = await generateText({
-      model: anthropic("claude-opus-4-5"),
-      system: "You are an Indian legal research assistant. Return only valid JSON.",
-      prompt: `Find 3 real Indian court cases similar to this bail case:
-Section: ${caseData.section}
-Offense: ${caseData.offenseType}
-Profile: ${caseData.accusedProfile}
-
-Return a JSON array of exactly 3 objects:
-[
-  {
-    "case": "Real Indian case name",
-    "principle": "Concise legal principle",
-    "searchLink": "https://indiankanoon.org/search/?formInput=<url-encoded case name>"
-  }
-]
-
-For each precedent:
-- Provide a real Indian case name (prefer Supreme Court / High Court)
-- Provide a concise legal principle
-- Generate a searchLink using:
-  https://indiankanoon.org/search/?formInput=<case name>
-- Use URL encoding (spaces -> %20)
-- Do NOT skip this field
-
-Do not return markdown or extra text.`,
-    });
+    const text = await generateAIResponse(
+      `You are an Indian legal research assistant. Return only valid JSON.\n\nFind 3 real Indian court cases similar to this bail case:\nSection: ${caseData.section}\nOffense: ${caseData.offenseType}\nProfile: ${caseData.accusedProfile}\n\nReturn a JSON array of exactly 3 objects:\n[\n  {\n    "case": "Real Indian case name",\n    "principle": "Concise legal principle",\n    "searchLink": "https://indiankanoon.org/search/?formInput=<url-encoded case name>"\n  }\n]\n\nFor each precedent:\n- Provide a real Indian case name (prefer Supreme Court / High Court)\n- Provide a concise legal principle\n- Generate a searchLink using:\n  https://indiankanoon.org/search/?formInput=<case name>\n- Use URL encoding (spaces -> %20)\n- Do NOT skip this field\n\nDo not return markdown or extra text.`
+    );
 
     const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
     const parsed = JSON.parse(cleaned);

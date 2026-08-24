@@ -246,7 +246,7 @@ function buildAnalysisPersistenceData(caseId: string, analysis: CaseAnalysis) {
     eligibilityStatus,
     confidenceLevel,
     confidenceExplanation: analysis.summary,
-    riskScore: Math.max(0, Math.min(10, Math.round(riskScore / 10))),
+    riskScore: riskScore,
     reasoning: analysis.legalReasoning,
     riskFactors: {
       flightRisk,

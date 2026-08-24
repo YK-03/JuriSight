@@ -71,7 +71,7 @@ export function mapPrismaAnalysis(a: Analysis): AnalysisView {
   return {
     id: a.id,
     eligibility: mapEligibility(a.eligibilityStatus),
-    riskScore: Math.min(100, Math.max(0, a.riskScore * 10)),
+    riskScore: Math.min(100, Math.max(0, a.riskScore)),
     legalBasis: legalBasisText,
     reasoning: a.reasoning,
     riskFactors: [

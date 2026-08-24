@@ -39,7 +39,7 @@ export async function getDashboardData() {
       analyzedCases,
       pendingCases: totalCases - analyzedCases,
       avgRiskScore: avgRiskScore._avg.riskScore
-        ? Math.round(avgRiskScore._avg.riskScore * 10) / 10
+        ? Math.round(avgRiskScore._avg.riskScore)
         : null,
     },
     recentCases,
