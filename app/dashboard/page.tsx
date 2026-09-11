@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HeroInput } from "@/components/dashboard/HeroInput";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentCases } from "@/components/dashboard/Recent Cases/RecentCases";
@@ -37,7 +36,6 @@ export default function DashboardPage() {
 
   return (
     <DashboardShell>
-      <DashboardHeader />
       <main className="flex-1 flex flex-col items-center w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-24 space-y-12 pb-24">
         <HeroInput onSubmit={handleHeroSubmit} />
         <QuickActions />

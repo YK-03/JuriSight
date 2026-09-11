@@ -4,7 +4,6 @@ import type { Route } from "next";
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 
@@ -227,7 +226,6 @@ function BailStrategyPageContent() {
 
   return (
     <DashboardShell>
-      <DashboardHeader />
       <main className="w-full flex-1 px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-8">
           <div className="flex flex-col gap-4">
@@ -524,7 +522,6 @@ function BailStrategyPageContent() {
 function BailStrategyFallback() {
   return (
     <DashboardShell>
-      <DashboardHeader />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <svg viewBox="0 0 48 48" className="h-10 w-10 animate-spin text-accent-gold" fill="none">
           <circle cx="24" cy="24" r="18" stroke="currentColor" strokeWidth="4" opacity="0.2" />

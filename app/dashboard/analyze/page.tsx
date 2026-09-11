@@ -3,7 +3,6 @@
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import type { AnalyzeResponse } from "@/lib/analysis-types";
@@ -276,7 +275,6 @@ function AnalyzeIntakeContent() {
   if (isSubmitting) {
     return (
       <DashboardShell>
-        <DashboardHeader />
         <main className="w-full flex-1 px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-3xl flex-col gap-6">
             <Button asChild variant="ghost" size="sm" className="w-fit pl-0">
@@ -306,7 +304,6 @@ function AnalyzeIntakeContent() {
 
   return (
     <DashboardShell>
-      <DashboardHeader />
       <main className="w-full flex-1 px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-4xl flex-col gap-8">
           <div className="flex flex-col gap-4">
@@ -478,7 +475,6 @@ function AnalyzeIntakeContent() {
 function IntakePageFallback() {
   return (
     <DashboardShell>
-      <DashboardHeader />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-border border-t-accent-gold" />
       </main>
