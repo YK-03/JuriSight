@@ -12,9 +12,9 @@ export const DOCUMENT_TYPES = [
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
-const NORMAL_DOCUMENT_LIMIT = 80000;
 const CHUNK_TARGET_LENGTH = 42000;
 const EXTRACTION_MODEL_LIMIT_HINT = 52000;
+const NORMAL_DOCUMENT_LIMIT = EXTRACTION_MODEL_LIMIT_HINT;
 
 export const StructuredExtractionSchema = z.object({
   documentType: z.enum(DOCUMENT_TYPES),
@@ -59,13 +59,33 @@ export type LegacyExtractedCase = {
 };
 
 function extractJsonBlock(raw: string): unknown {
-  try {
-    const cleaned = raw.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error("[Document Parser] JSON parse error:", error, "Raw:", raw);
-    throw new Error("Failed to parse AI response as JSON");
+  const trimmed = raw.trim();
+  const unfenced = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  for (const candidate of [trimmed, unfenced]) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try extracting the JSON object from surrounding model text below.
+    }
   }
+
+  const firstBrace = unfenced.indexOf("{");
+  const lastBrace = unfenced.lastIndexOf("}");
+
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(unfenced.slice(firstBrace, lastBrace + 1));
+    } catch {
+      // Fall through to the consistent parser error below.
+    }
+  }
+
+  console.error("[Document Parser] JSON parse error: no valid JSON object found", "Raw:", raw);
+  throw new Error("Failed to parse AI response as JSON");
 }
 
 function uniqStrings(values: string[]): string[] {
@@ -411,7 +431,7 @@ export function buildLegacyExtractedCase(structured: StructuredExtraction, clean
 export async function extractStructuredDocument(text: string): Promise<{ structured: StructuredExtraction; meta: Omit<ExtractionMeta, "rawTextLength" | "cleanedTextLength">; }> {
   const detectedDocumentType = detectDocumentType(text);
 
-  if (text.length < NORMAL_DOCUMENT_LIMIT) {
+  if (text.length <= NORMAL_DOCUMENT_LIMIT) {
     const startedAt = Date.now();
     const structured = await extractChunk(text, detectedDocumentType, false);
     return {

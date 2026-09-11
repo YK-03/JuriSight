@@ -141,6 +141,10 @@ export async function POST(req: Request) {
           chatHistoryText = existingSession.messages
             .map((message) => `${message.role === "assistant" ? "AI" : "User"}: ${message.content}`)
             .join("\n\n");
+        } else {
+          chatHistoryText = messages.slice(0, -1)
+            .map((msg) => `${msg.role === "model" ? "AI" : "User"}: ${msg.parts}`)
+            .join("\n\n");
         }
       } else {
         chatHistoryText = messages.slice(0, -1)

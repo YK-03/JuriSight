@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export function CasePrecedents({ caseId }: { caseId: string }) {
   const [items, setItems] = useState<Precedent[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -18,8 +19,17 @@ export function CasePrecedents({ caseId }: { caseId: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ caseId }),
         });
-        const data = (await res.json()) as { precedents: Precedent[] };
+        const data = (await res.json().catch(() => null)) as { precedents?: Precedent[]; error?: string } | null;
+
+        if (!res.ok || !Array.isArray(data?.precedents)) {
+          throw new Error(data?.error || "Failed to fetch precedents");
+        }
+
         if (mounted) setItems(data.precedents);
+      } catch (requestError) {
+        if (mounted) {
+          setError(requestError instanceof Error ? requestError.message : "Failed to fetch precedents");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -40,7 +50,9 @@ export function CasePrecedents({ caseId }: { caseId: string }) {
           ? [1, 2, 3].map((n) => (
               <div key={n} className="h-20 animate-pulse rounded-lg border border-border bg-bg-secondary" />
             ))
-          : items?.map((item, index) => (
+          : error
+            ? <p className="text-sm text-state-error">{error}</p>
+            : items?.map((item, index) => (
               <div key={`${item.case}-${index}`} className="rounded-lg border border-border bg-bg-card p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <a

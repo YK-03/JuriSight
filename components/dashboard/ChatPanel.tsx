@@ -394,7 +394,7 @@ export function ChatPanel({
       const data = await response.json();
 
       if (!response.ok || data.success === false || typeof data.reply !== "string") {
-        throw new Error(data.error || "Failed to fetch");
+        throw new Error(data.error || data.message || "Failed to fetch");
       }
 
       if (typeof data.sessionId === "string" && data.sessionId.trim()) {

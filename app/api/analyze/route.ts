@@ -147,6 +147,43 @@ function mapVerdictToEligibilityStatus(verdict: CaseAnalysis["verdict"]): Eligib
   }
 }
 
+function normalizeModelVerdict(value: unknown): CaseAnalysis["verdict"] {
+  if (typeof value !== "string") {
+    return "Mixed";
+  }
+
+  switch (value.trim().toLowerCase()) {
+    case "high":
+    case "favorable":
+      return "Favorable";
+    case "low":
+    case "unfavorable":
+      return "Unfavorable";
+    case "moderate":
+    case "mixed":
+      return "Mixed";
+    default:
+      return "Mixed";
+  }
+}
+
+function normalizeRiskSeverity(value: unknown): CaseAnalysis["riskFactors"][number]["severity"] {
+  if (typeof value !== "string") {
+    return "Medium";
+  }
+
+  switch (value.trim().toLowerCase()) {
+    case "low":
+      return "Low";
+    case "high":
+      return "High";
+    case "medium":
+    case "moderate":
+    default:
+      return "Medium";
+  }
+}
+
 function mapRiskScoreToConfidenceLevel(riskScore: number): ConfidenceLevel {
   if (riskScore <= 35 || riskScore >= 75) {
     return "HIGH";
@@ -355,6 +392,7 @@ export async function POST(req: Request) {
           accusedProfile: true,
           section: true,
           cooperationLevel: true,
+          priorRecord: true,
           jurisdiction: true,
           legalFramework: true,
           specialAct: true,
@@ -569,7 +607,7 @@ Legal Questions: ${questions}
       });
 
       mappedAnalysis = {
-        verdict: parsed.eligibility || "Moderate",
+        verdict: normalizeModelVerdict(parsed.eligibility),
         riskScore: computedRiskScore,
         riskBreakdown: null,
         summary: parsed.analysisSummary || parsed.legalReasoning?.slice(0, 200) || "Eligibility analysis evaluated.",
@@ -580,7 +618,7 @@ Legal Questions: ${questions}
         courtNote: "",
         riskFactors: (parsed.risks || []).map((r: any) => ({
           label: r?.text || "Identified Risk",
-          severity: r?.level || "MEDIUM",
+          severity: normalizeRiskSeverity(r?.level),
           description: r?.text || "",
         })),
         legalReasoning: parsed.legalReasoning || "",
@@ -594,7 +632,7 @@ Legal Questions: ${questions}
         precedents,
         recommendations: parsed.recommendations || [],
         biasWarning: null,
-      } as unknown as CaseAnalysis;
+      };
 
       console.log(`[Groq] SUCCESS`);
     } catch (err: any) {

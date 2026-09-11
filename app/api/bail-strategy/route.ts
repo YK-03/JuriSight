@@ -167,6 +167,19 @@ function isStrategy(value: unknown): value is BailStrategyResponse {
   );
 }
 
+function normalizeEligibility(value: string): string {
+  switch (value.trim().toLowerCase()) {
+    case "likely eligible":
+      return "Likely eligible";
+    case "moderate chance":
+      return "Uncertain";
+    case "low probability":
+      return "Unlikely eligible";
+    default:
+      return value;
+  }
+}
+
 function labelForCustodyDuration(value: CustodyDuration): string {
   switch (value) {
     case "under-30":
@@ -344,11 +357,7 @@ export async function POST(request: Request) {
         throw new Error("Invalid JSON structure");
       }
 
-      if (
-        !parsed.eligibility ||
-        !Array.isArray(parsed.reasoning) ||
-        !Array.isArray(parsed.keyFactors)
-      ) {
+      if (!parsed.eligibility || !isStrategy(parsed)) {
         throw new Error("Invalid JSON structure from model");
       }
 
@@ -395,6 +404,7 @@ export async function POST(request: Request) {
     const suretyResult = getSuretyRange(body);
     const finalStrategy = {
       ...(parsed as BailStrategyResponse),
+      eligibility: normalizeEligibility((parsed as BailStrategyResponse).eligibility),
       success: true,
       suretyRangeMin: suretyResult.min,
       suretyRangeMax: suretyResult.max,
