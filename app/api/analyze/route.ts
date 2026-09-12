@@ -14,8 +14,6 @@ import { getOrCreateUser } from "@/lib/user-sync";
 
 export const runtime = "nodejs";
 
-const systemInstruction = `You are a legal analysis assistant. Return ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
-
 function extractSections(input: string) {
   const match = input.match(/(?:sections?|under)[^\w]*([\w\d\s,\.-]+)/i);
   return match ? match[1].trim().slice(0, 50) : "Not specified";

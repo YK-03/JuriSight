@@ -135,22 +135,6 @@ function parseAge(age: string | number | undefined): number {
   return match ? parseInt(match[0], 10) : 25;
 }
 
-function stripMarkdownFences(value: string): string {
-  let cleaned = value.trim();
-
-  if (cleaned.startsWith("```json")) {
-    cleaned = cleaned.replace(/^```json\s*/i, "");
-  } else if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```\s*/, "");
-  }
-
-  if (cleaned.endsWith("```")) {
-    cleaned = cleaned.replace(/\s*```$/, "");
-  }
-
-  return cleaned.trim();
-}
-
 function isStrategy(value: unknown): value is BailStrategyResponse {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
@@ -326,8 +310,6 @@ export async function POST(request: Request) {
     console.log("[LegalRules] Custody days:", custodyDays);
     console.log("[LegalRules] Sections:", parsedSections);
     console.log("[LegalRules] promptInjection:\n", legalRules.promptInjection);
-
-    const cacheKey = JSON.stringify(body);
 
     let aiResponse;
     try {

@@ -117,7 +117,6 @@ export async function POST(req: Request) {
     const persistedSessionId =
       typeof sessionId === "string" && sessionId.trim() ? sessionId : null;
 
-    const cacheKey = JSON.stringify({ persistedSessionId, latestUserText });
     let aiResponse;
     try {
       let chatHistoryText = "";

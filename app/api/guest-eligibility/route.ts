@@ -54,23 +54,6 @@ Rules:
 - Return ONLY valid JSON. Do not include explanations, markdown, or extra text.
 - No keys other than those specified.`;
 
-function stripMarkdownFences(value: string) {
-  let cleaned = value.trim();
-
-  if (cleaned.startsWith("```json")) {
-    cleaned = cleaned.replace(/^```json\s*/i, "");
-  } else if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```\s*/, "");
-  }
-
-  if (cleaned.endsWith("```")) {
-    cleaned = cleaned.replace(/\s*```$/, "");
-  }
-
-  return cleaned.trim();
-}
-
-
 export async function POST(request: Request) {
   let rawBody;
   try {
@@ -96,7 +79,6 @@ export async function POST(request: Request) {
       `Description: ${parsedBody.data.description}`,
     ].join("\n");
 
-    const cacheKey = JSON.stringify(parsedBody.data);
     let aiResponse;
     try {
       const fullPrompt = `${systemPrompt}\n\n${prompt}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
