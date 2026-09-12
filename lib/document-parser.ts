@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { generateAIResponse } from "./groq";
+import { generateAIResponse, extractJsonBlock } from "./groq";
 
 export const DOCUMENT_TYPES = [
   "FIR",
@@ -58,34 +58,35 @@ export type LegacyExtractedCase = {
   notes: string;
 };
 
-function extractJsonBlock(raw: string): unknown {
-  const trimmed = raw.trim();
-  const unfenced = trimmed
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
+function sanitizeChunkCandidate(raw: any, fallbackType: DocumentType): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const asArray = (val: any) =>
+    Array.isArray(val)
+      ? val.map((v) => (typeof v === "string" ? v.trim() : String(v || ""))).filter(Boolean)
+      : typeof val === "string" && val.trim()
+      ? [val.trim()]
+      : [];
+  const asString = (val: any) => (typeof val === "string" ? val.trim() : typeof val === "number" ? String(val) : "");
 
-  for (const candidate of [trimmed, unfenced]) {
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      // Try extracting the JSON object from surrounding model text below.
-    }
+  let docType: DocumentType = fallbackType;
+  if (typeof raw.documentType === "string") {
+    const matched = DOCUMENT_TYPES.find((t) => t.toLowerCase() === raw.documentType.trim().toLowerCase());
+    if (matched) docType = matched;
   }
 
-  const firstBrace = unfenced.indexOf("{");
-  const lastBrace = unfenced.lastIndexOf("}");
-
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    try {
-      return JSON.parse(unfenced.slice(firstBrace, lastBrace + 1));
-    } catch {
-      // Fall through to the consistent parser error below.
-    }
-  }
-
-  console.error("[Document Parser] JSON parse error: no valid JSON object found", "Raw:", raw);
-  throw new Error("Failed to parse AI response as JSON");
+  return {
+    documentType: docType,
+    accused: asArray(raw.accused),
+    complainant: asArray(raw.complainant),
+    sections: asArray(raw.sections),
+    allegations: asArray(raw.allegations),
+    evidence: asArray(raw.evidence),
+    courtStage: asString(raw.courtStage),
+    custodyFacts: asString(raw.custodyFacts),
+    proceduralConcerns: asArray(raw.proceduralConcerns),
+    timeline: asArray(raw.timeline),
+    keyEntities: asArray(raw.keyEntities),
+  };
 }
 
 function uniqStrings(values: string[]): string[] {
@@ -309,7 +310,8 @@ function buildExtractionPrompt(text: string, detectedType: DocumentType, isChunk
 async function extractChunk(text: string, detectedType: DocumentType, isChunk: boolean, chunkIndex?: number, totalChunks?: number): Promise<StructuredExtraction> {
   const response = await generateAIResponse(buildExtractionPrompt(text, detectedType, isChunk, chunkIndex, totalChunks));
   const parsed = extractJsonBlock(response);
-  return normalizeStructuredExtraction(StructuredExtractionSchema.parse(parsed));
+  const sanitized = sanitizeChunkCandidate(parsed, detectedType);
+  return normalizeStructuredExtraction(StructuredExtractionSchema.parse(sanitized));
 }
 
 function pickPreferredDocumentType(values: DocumentType[], fallback: DocumentType): DocumentType {

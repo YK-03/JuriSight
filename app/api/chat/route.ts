@@ -137,16 +137,19 @@ export async function POST(req: Request) {
         });
 
         if (existingSession) {
-          chatHistoryText = existingSession.messages
+          const recentMessages = existingSession.messages.slice(-20);
+          chatHistoryText = recentMessages
             .map((message) => `${message.role === "assistant" ? "AI" : "User"}: ${message.content}`)
             .join("\n\n");
         } else {
-          chatHistoryText = messages.slice(0, -1)
+          const recentMessages = messages.slice(0, -1).slice(-20);
+          chatHistoryText = recentMessages
             .map((msg) => `${msg.role === "model" ? "AI" : "User"}: ${msg.parts}`)
             .join("\n\n");
         }
       } else {
-        chatHistoryText = messages.slice(0, -1)
+        const recentMessages = messages.slice(0, -1).slice(-20);
+        chatHistoryText = recentMessages
           .map((msg) => `${msg.role === "model" ? "AI" : "User"}: ${msg.parts}`)
           .join("\n\n");
       }
@@ -157,7 +160,12 @@ export async function POST(req: Request) {
       const rawText = await generateAIResponse(prompt);
       console.log("[Chat API] Received response from Groq. Length:", rawText.length);
 
-      aiResponse = { success: true, text: rawText.trim() };
+      const reply = rawText.trim();
+      if (!reply) {
+        throw new Error("Model returned an empty reply.");
+      }
+
+      aiResponse = { success: true, text: reply };
     } catch (error) {
       console.error("[Chat API] Groq Error:", error);
       aiResponse = { success: false, fallback: true };

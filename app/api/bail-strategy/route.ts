@@ -1,4 +1,4 @@
-import { generateAIResponse } from "@/lib/groq";
+import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
 import { getSuretyRange } from "@/lib/surety-engine";
 import { NextResponse } from "next/server";
 import { runLegalRules } from "@/lib/legal-rules";
@@ -317,76 +317,64 @@ export async function POST(request: Request) {
       console.log("[Final Prompt String]", prompt);
 
       const rawText = await generateAIResponse(prompt);
-      
-      let safeText = rawText;
-      const firstBrace = rawText.indexOf("{");
-      const lastBrace = rawText.lastIndexOf("}");
-
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        safeText = rawText.slice(firstBrace, lastBrace + 1);
-      }
-      
-      safeText = safeText.trim();
-
-      let parsed;
-      try {
-        parsed = JSON.parse(safeText);
-      } catch (err) {
-        throw new Error("Invalid JSON response from model");
-      }
+      const parsed = extractJsonBlock(rawText) as any;
 
       if (!parsed || typeof parsed !== "object") {
-        throw new Error("Invalid JSON structure");
-      }
-
-      if (!parsed.eligibility || !isStrategy(parsed)) {
         throw new Error("Invalid JSON structure from model");
       }
 
-      aiResponse = { success: true, text: safeText };
-    } catch (error) {
-      console.error("[Groq Error]", error);
-      aiResponse = { success: false, fallback: true };
-    }
+      const rawReasoning = Array.isArray(parsed.reasoning)
+        ? parsed.reasoning
+        : typeof parsed.reasoning === "string" && parsed.reasoning.trim()
+        ? [parsed.reasoning.trim()]
+        : [];
+      const reasoning = rawReasoning
+        .map((r: any) => (typeof r === "string" ? r.trim() : String(r?.text || r?.point || r || "")))
+        .filter(Boolean);
 
-    if (!aiResponse.success || aiResponse.fallback) {
-      // Deterministic Safe Fallback inside pipeline
-      const suretyResult = getSuretyRange(body);
-      return NextResponse.json({
+      const rawFactors = Array.isArray(parsed.keyFactors)
+        ? parsed.keyFactors
+        : typeof parsed.keyFactors === "string" && parsed.keyFactors.trim()
+        ? [parsed.keyFactors.trim()]
+        : [];
+      const keyFactors = rawFactors
+        .map((f: any) => (typeof f === "string" ? f.trim() : String(f?.factor || f?.text || f || "")))
+        .filter(Boolean);
+
+      const rawEligibility = typeof parsed.eligibility === "string" && parsed.eligibility.trim()
+        ? parsed.eligibility.trim()
+        : "Moderate Chance";
+
+      aiResponse = {
         success: true,
         strategy: {
-          eligibility: "Moderate Chance",
-          reasoning: [
-            "Case involves non-bailable offence",
+          eligibility: normalizeEligibility(rawEligibility),
+          reasoning: reasoning.length > 0 ? reasoning : [
+            "Case involves evaluated statutory sections",
             "Investigation status and custody duration are relevant",
             "Court will consider overall circumstances"
           ],
-          keyFactors: [],
-          suretyRangeMin: suretyResult.min,
-          suretyRangeMax: suretyResult.max,
-          suretyLabel: suretyResult.label,
-        }
-      });
+          keyFactors,
+        },
+      };
+    } catch (error: any) {
+      console.error("[Bail Strategy AI Error]:", error?.message || error);
+      return NextResponse.json(
+        { success: false, error: "AI service unavailable. Please try again." },
+        { status: 503 }
+      );
     }
 
-    const responseText = aiResponse.text as string;
-
-    let parsed: unknown;
-
-    try {
-      parsed = JSON.parse(responseText);
-    } catch (err) {
-      throw new Error("Invalid JSON response from model");
-    }
-
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("Invalid JSON structure");
+    if (!aiResponse?.strategy) {
+      return NextResponse.json(
+        { success: false, error: "Unable to generate bail strategy. Please try again." },
+        { status: 502 }
+      );
     }
 
     const suretyResult = getSuretyRange(body);
     const finalStrategy = {
-      ...(parsed as BailStrategyResponse),
-      eligibility: normalizeEligibility((parsed as BailStrategyResponse).eligibility),
+      ...aiResponse.strategy,
       success: true,
       suretyRangeMin: suretyResult.min,
       suretyRangeMax: suretyResult.max,
@@ -397,24 +385,9 @@ export async function POST(request: Request) {
   } catch (e: any) {
     console.error("[API ERROR]", e);
 
-    // Hard fallback trigger when top level execution fails completely
     return NextResponse.json(
-      { 
-        success: true, 
-        strategy: {
-          eligibility: "Moderate Chance",
-          reasoning: [
-            "Case involves non-bailable offence",
-            "Investigation status and custody duration are relevant",
-            "Court will consider overall circumstances"
-          ],
-          keyFactors: [],
-          suretyRangeMin: 5000,
-          suretyRangeMax: 50000,
-          suretyLabel: "Dependent on judicial discretion",
-        }
-      },
-      { status: 200 }
+      { success: false, error: "Unable to process bail strategy. Please try again." },
+      { status: 500 }
     );
   }
 }

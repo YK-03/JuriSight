@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateAIResponse } from "@/lib/groq";
+import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
 import {
   ConfidenceLevel,
   EligibilityStatus,
@@ -549,45 +549,59 @@ Legal Questions: ${questions}
 
     try {
       const rawText = await generateAIResponse(finalPrompt);
-      
-      let safeText = rawText;
-      const firstBrace = rawText.indexOf("{");
-      const lastBrace = rawText.lastIndexOf("}");
-
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        safeText = rawText.slice(firstBrace, lastBrace + 1);
-      }
-
-      safeText = safeText.trim();
-
-      let parsed;
-      try {
-        parsed = JSON.parse(safeText);
-      } catch (err) {
-        throw new Error("Invalid JSON response from model");
-      }
+      const parsed = extractJsonBlock(rawText) as any;
 
       if (!parsed || typeof parsed !== "object") {
-        throw new Error("Invalid JSON structure");
-      }
-
-      if (
-        !parsed.eligibility ||
-        !Array.isArray(parsed.risks) ||
-        !Array.isArray(parsed.strengths)
-      ) {
         throw new Error("Invalid JSON structure from model");
       }
 
-      // Ensure optional fields default safely
-      if (!Array.isArray(parsed.applicableSections)) parsed.applicableSections = [];
-      if (!Array.isArray(parsed.precedents)) parsed.precedents = [];
-      if (!Array.isArray(parsed.recommendations)) parsed.recommendations = [];
-      if (!parsed.analysisSummary) parsed.analysisSummary = "";
-      if (!parsed.legalReasoning) parsed.legalReasoning = "";
+      // Normalize risks and strengths into strictly-typed arrays
+      const rawRisks = Array.isArray(parsed.risks)
+        ? parsed.risks
+        : parsed.risks && typeof parsed.risks === "object"
+        ? Object.values(parsed.risks)
+        : [];
+      const normalizedRisks = rawRisks.map((r: any) => {
+        const text = typeof r === "string" ? r.trim() : typeof r?.text === "string" ? r.text.trim() : typeof r?.label === "string" ? r.label.trim() : "Identified Risk";
+        const rawLevel = String(r?.level || r?.severity || "").toUpperCase();
+        const level: "LOW" | "MEDIUM" | "HIGH" = rawLevel === "HIGH" || rawLevel === "LOW" ? rawLevel : "MEDIUM";
+        return { text: text || "Identified Risk", level };
+      });
 
-      const normalizedPrecedents = normalizePrecedents(parsed.precedents);
-      const fallbackPrecedents = buildFallbackPrecedents(parsed.precedents);
+      const rawStrengths = Array.isArray(parsed.strengths)
+        ? parsed.strengths
+        : parsed.strengths && typeof parsed.strengths === "object"
+        ? Object.values(parsed.strengths)
+        : [];
+      const normalizedStrengths = rawStrengths.map((s: any) => {
+        const text = typeof s === "string" ? s.trim() : typeof s?.text === "string" ? s.text.trim() : typeof s?.label === "string" ? s.label.trim() : "Mitigating Factor";
+        const rawImpact = String(s?.impact || s?.level || "").toUpperCase();
+        const impact: "LOW" | "MEDIUM" | "HIGH" = rawImpact === "HIGH" || rawImpact === "LOW" ? rawImpact : "MEDIUM";
+        return { text: text || "Mitigating Factor", impact };
+      });
+
+      const rawSections = Array.isArray(parsed.applicableSections)
+        ? parsed.applicableSections
+        : [];
+      const applicableSections = rawSections
+        .map((s: any) =>
+          typeof s === "string"
+            ? { code: s.trim(), title: s.trim(), relevance: "" }
+            : {
+                code: String(s?.code || "").trim(),
+                title: String(s?.title || s?.code || "").trim(),
+                relevance: String(s?.relevance || s?.description || "").trim(),
+              }
+        )
+        .filter((s: any) => Boolean(s.code || s.title));
+
+      const rawPrecedents = Array.isArray(parsed.precedents)
+        ? parsed.precedents
+        : parsed.precedents && typeof parsed.precedents === "object" && Array.isArray(parsed.precedents.cases)
+        ? parsed.precedents.cases
+        : [];
+      const normalizedPrecedents = normalizePrecedents(rawPrecedents);
+      const fallbackPrecedents = buildFallbackPrecedents(rawPrecedents);
       const precedents =
         normalizedPrecedents.length > 0
           ? normalizedPrecedents
@@ -604,37 +618,45 @@ Legal Questions: ${questions}
         ].filter((t): t is string => !!t),
       });
 
+      const legalReasoning = typeof parsed.legalReasoning === "string" ? parsed.legalReasoning.trim() : "";
+      const analysisSummary = typeof parsed.analysisSummary === "string" && parsed.analysisSummary.trim()
+        ? parsed.analysisSummary.trim()
+        : legalReasoning.slice(0, 200) || "Eligibility analysis evaluated.";
+
+      const rawRecommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+      const recommendations = rawRecommendations
+        .map((rec: any) => (typeof rec === "string" ? rec.trim() : String(rec?.text || "")))
+        .filter(Boolean);
+
+      const rawAnalysisList = Array.isArray(parsed.analysis)
+        ? parsed.analysis.map((a: any) => (typeof a === "string" ? a.trim() : String(a || ""))).filter(Boolean)
+        : [];
+
       mappedAnalysis = {
-        verdict: normalizeModelVerdict(parsed.eligibility),
+        verdict: normalizeModelVerdict(parsed.eligibility || ""),
         riskScore: computedRiskScore,
         riskBreakdown: null,
-        summary: parsed.analysisSummary || parsed.legalReasoning?.slice(0, 200) || "Eligibility analysis evaluated.",
-        analysis: Array.isArray(parsed.analysis) ? parsed.analysis : [],
-        risks: parsed.risks || [],
-        strengths: parsed.strengths || [],
-        grounds: Array.isArray(parsed.analysis) ? parsed.analysis : [],
+        summary: analysisSummary,
+        analysis: rawAnalysisList,
+        risks: normalizedRisks,
+        strengths: normalizedStrengths,
+        grounds: rawAnalysisList,
         courtNote: "",
-        riskFactors: (parsed.risks || []).map((r: any) => ({
-          label: r?.text || "Identified Risk",
-          severity: normalizeRiskSeverity(r?.level),
-          description: r?.text || "",
+        riskFactors: normalizedRisks.map((r: any) => ({
+          label: r.text.length > 60 ? `${r.text.slice(0, 57)}...` : r.text,
+          severity: normalizeRiskSeverity(r.level),
+          description: r.text,
         })),
-        legalReasoning: parsed.legalReasoning || "",
-        applicableSections: parsed.applicableSections.map((s: any) =>
-          typeof s === "string" ? { code: s, title: s, relevance: "" } : {
-            code: s?.code || "",
-            title: s?.title || s?.code || "",
-            relevance: s?.relevance || s?.description || "",
-          }
-        ),
+        legalReasoning,
+        applicableSections,
         precedents,
-        recommendations: parsed.recommendations || [],
+        recommendations,
         biasWarning: null,
       };
 
       console.log(`[Groq] SUCCESS`);
     } catch (err: any) {
-      console.log(`[Groq] failed`, err?.message || err);
+      console.error(`[Analyze API] Groq analysis failed:`, err?.message || err);
       return NextResponse.json(
         { success: false, error: "AI service unavailable. Please try again." },
         { status: 503 }

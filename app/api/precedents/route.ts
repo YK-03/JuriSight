@@ -1,36 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
-import { generateAIResponse } from "@/lib/groq";
+import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
 import { buildFallbackPrecedents, normalizePrecedents, PrecedentsSchema } from "@/lib/precedents";
 import { getOrCreateUser } from "@/lib/user-sync";
 
 const BodySchema = z.object({ caseId: z.string().cuid() });
-
-function parsePrecedentResponse(raw: string): unknown {
-  const trimmed = raw.trim();
-  const unfenced = trimmed
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-
-  for (const candidate of [trimmed, unfenced]) {
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      // Try extracting the JSON array from surrounding model text below.
-    }
-  }
-
-  const firstBracket = unfenced.indexOf("[");
-  const lastBracket = unfenced.lastIndexOf("]");
-
-  if (firstBracket !== -1 && lastBracket > firstBracket) {
-    return JSON.parse(unfenced.slice(firstBracket, lastBracket + 1));
-  }
-
-  throw new Error("Invalid precedent JSON response");
-}
 
 export async function POST(req: Request) {
   const user = await getOrCreateUser();
@@ -58,9 +33,17 @@ export async function POST(req: Request) {
       `You are an Indian legal research assistant. Return only valid JSON.\n\nFind 3 real Indian court cases similar to this bail case:\nSection: ${caseData.section}\nOffense: ${caseData.offenseType}\nProfile: ${caseData.accusedProfile}\n\nReturn a JSON array of exactly 3 objects:\n[\n  {\n    "case": "Real Indian case name",\n    "principle": "Concise legal principle",\n    "searchLink": "https://indiankanoon.org/search/?formInput=<url-encoded case name>"\n  }\n]\n\nFor each precedent:\n- Provide a real Indian case name (prefer Supreme Court / High Court)\n- Provide a concise legal principle\n- Generate a searchLink using:\n  https://indiankanoon.org/search/?formInput=<case name>\n- Use URL encoding (spaces -> %20)\n- Do NOT skip this field\n\nDo not return markdown or extra text.`
     );
 
-    const parsed = parsePrecedentResponse(text);
-    const precedents = normalizePrecedents(parsed);
-    const fallbackPrecedents = buildFallbackPrecedents(parsed);
+    const parsed = extractJsonBlock(text);
+    const rawList = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === "object" && Array.isArray((parsed as any).precedents)
+      ? (parsed as any).precedents
+      : parsed && typeof parsed === "object" && Array.isArray((parsed as any).cases)
+      ? (parsed as any).cases
+      : [];
+
+    const precedents = normalizePrecedents(rawList);
+    const fallbackPrecedents = buildFallbackPrecedents(rawList);
     const safePrecedents = PrecedentsSchema.parse(
       precedents.length > 0 ? precedents : fallbackPrecedents,
     );
@@ -79,6 +62,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid request", details: error.flatten() }, { status: 400 });
     }
 
-    return NextResponse.json({ error: "Failed to fetch precedents" }, { status: 500 });
+    console.error("[Precedents API Error]:", error);
+    return NextResponse.json({ error: "Failed to fetch precedents" }, { status: 503 });
   }
 }
