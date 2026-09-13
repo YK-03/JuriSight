@@ -28,6 +28,12 @@ export const StructuredExtractionSchema = z.object({
   proceduralConcerns: z.array(z.string()),
   timeline: z.array(z.string()),
   keyEntities: z.array(z.string()),
+  firNumber: z.string().optional().default(""),
+  policeStation: z.string().optional().default(""),
+  district: z.string().optional().default(""),
+  state: z.string().optional().default(""),
+  arrestDate: z.string().optional().default(""),
+  accusedAge: z.number().int().nullable().optional().default(null),
 });
 
 export type StructuredExtraction = z.infer<typeof StructuredExtractionSchema>;
@@ -67,6 +73,18 @@ function sanitizeChunkCandidate(raw: any, fallbackType: DocumentType): unknown {
       ? [val.trim()]
       : [];
   const asString = (val: any) => (typeof val === "string" ? val.trim() : typeof val === "number" ? String(val) : "");
+  const asAge = (val: any): number | null => {
+    if (typeof val === "number" && Number.isFinite(val) && val > 0 && val < 150) {
+      return Math.round(val);
+    }
+    if (typeof val === "string") {
+      const parsed = parseInt(val.trim(), 10);
+      if (Number.isFinite(parsed) && parsed > 0 && parsed < 150) {
+        return parsed;
+      }
+    }
+    return null;
+  };
 
   let docType: DocumentType = fallbackType;
   if (typeof raw.documentType === "string") {
@@ -86,6 +104,12 @@ function sanitizeChunkCandidate(raw: any, fallbackType: DocumentType): unknown {
     proceduralConcerns: asArray(raw.proceduralConcerns),
     timeline: asArray(raw.timeline),
     keyEntities: asArray(raw.keyEntities),
+    firNumber: asString(raw.firNumber),
+    policeStation: asString(raw.policeStation),
+    district: asString(raw.district),
+    state: asString(raw.state),
+    arrestDate: asString(raw.arrestDate),
+    accusedAge: asAge(raw.accusedAge),
   };
 }
 
@@ -124,6 +148,12 @@ function normalizeStructuredExtraction(candidate: StructuredExtraction): Structu
     proceduralConcerns: uniqStrings(candidate.proceduralConcerns),
     timeline: uniqStrings(candidate.timeline),
     keyEntities: uniqStrings(candidate.keyEntities),
+    firNumber: (candidate.firNumber ?? "").trim(),
+    policeStation: (candidate.policeStation ?? "").trim(),
+    district: (candidate.district ?? "").trim(),
+    state: (candidate.state ?? "").trim(),
+    arrestDate: (candidate.arrestDate ?? "").trim(),
+    accusedAge: typeof candidate.accusedAge === "number" && Number.isFinite(candidate.accusedAge) ? candidate.accusedAge : null,
   };
 }
 
@@ -299,7 +329,13 @@ function buildExtractionPrompt(text: string, detectedType: DocumentType, isChunk
     '  "custodyFacts": string,',
     '  "proceduralConcerns": string[],',
     '  "timeline": string[],',
-    '  "keyEntities": string[]',
+    '  "keyEntities": string[],',
+    '  "firNumber": string,',
+    '  "policeStation": string,',
+    '  "district": string,',
+    '  "state": string,',
+    '  "arrestDate": string,',
+    '  "accusedAge": number | null',
     "}",
     "",
     "Document text:",
@@ -350,13 +386,28 @@ export function mergeStructuredExtractions(chunks: StructuredExtraction[], fallb
       proceduralConcerns: [],
       timeline: [],
       keyEntities: [],
+      firNumber: "",
+      policeStation: "",
+      district: "",
+      state: "",
+      arrestDate: "",
+      accusedAge: null,
     });
   }
 
-  const longestString = (values: string[]): string =>
+  const longestString = (values: (string | undefined)[]): string =>
     values
-      .map((value) => value.trim())
+      .map((value) => (value ?? "").trim())
       .sort((left, right) => right.length - left.length)[0] ?? "";
+
+  const firstValidAge = (chunksList: StructuredExtraction[]): number | null => {
+    for (const chunk of chunksList) {
+      if (typeof chunk.accusedAge === "number" && Number.isFinite(chunk.accusedAge)) {
+        return chunk.accusedAge;
+      }
+    }
+    return null;
+  };
 
   return normalizeStructuredExtraction({
     documentType: pickPreferredDocumentType(chunks.map((chunk) => chunk.documentType), fallbackType),
@@ -370,6 +421,12 @@ export function mergeStructuredExtractions(chunks: StructuredExtraction[], fallb
     proceduralConcerns: chunks.flatMap((chunk) => chunk.proceduralConcerns),
     timeline: chunks.flatMap((chunk) => chunk.timeline),
     keyEntities: chunks.flatMap((chunk) => chunk.keyEntities),
+    firNumber: longestString(chunks.map((chunk) => chunk.firNumber)),
+    policeStation: longestString(chunks.map((chunk) => chunk.policeStation)),
+    district: longestString(chunks.map((chunk) => chunk.district)),
+    state: longestString(chunks.map((chunk) => chunk.state)),
+    arrestDate: longestString(chunks.map((chunk) => chunk.arrestDate)),
+    accusedAge: firstValidAge(chunks),
   });
 }
 
@@ -401,22 +458,32 @@ function inferTitle(structured: StructuredExtraction, firNumber: string): string
 }
 
 export function buildLegacyExtractedCase(structured: StructuredExtraction, cleanedText: string): LegacyExtractedCase {
-  const firNumber = extractRegex(cleanedText, /\bFIR\s*(?:No\.?|Number)?\s*[:\-]?\s*([A-Za-z0-9./-]+)/i);
-  const policeStation = extractRegex(cleanedText, /\bPolice Station\s*[:\-]?\s*([^\n,]+)/i);
-  const district = extractRegex(cleanedText, /\bDistrict\s*[:\-]?\s*([^\n,]+)/i);
-  const state = extractRegex(cleanedText, /\bState\s*[:\-]?\s*([^\n,]+)/i);
-  const arrestDate = extractRegex(cleanedText, /\b(?:Date of Arrest|Arrest Date)\s*[:\-]?\s*([0-9./-]{6,20})/i);
-  const accusedAgeText = extractRegex(cleanedText, /\bAge\s*[:\-]?\s*(\d{1,3})\b/i);
-  const accusedAge = accusedAgeText ? Number(accusedAgeText) : null;
+  const firNumberFallback = extractRegex(cleanedText, /\bFIR\s*(?:No\.?|Number)?\s*[:\-]?\s*([A-Za-z0-9./-]+)/i);
+  const policeStationFallback = extractRegex(cleanedText, /\bPolice Station\s*[:\-]?\s*([^\n,]+)/i);
+  const districtFallback = extractRegex(cleanedText, /\bDistrict\s*[:\-]?\s*([^\n,]+)/i);
+  const stateFallback = extractRegex(cleanedText, /\bState\s*[:\-]?\s*([^\n,]+)/i);
+  const arrestDateFallback = extractRegex(cleanedText, /\b(?:Date of Arrest|Arrest Date)\s*[:\-]?\s*([0-9./-]{6,20})/i);
+  const accusedAgeTextFallback = extractRegex(cleanedText, /\bAge\s*[:\-]?\s*(\d{1,3})\b/i);
+  const parsedAgeFallback = accusedAgeTextFallback ? Number(accusedAgeTextFallback) : null;
+  const ageFallback = Number.isFinite(parsedAgeFallback) ? parsedAgeFallback : null;
+
+  const firNumber = structured.firNumber?.trim() || firNumberFallback;
+  const policeStationRaw = structured.policeStation?.trim() || policeStationFallback;
+  const districtRaw = structured.district?.trim() || districtFallback;
+  const stateRaw = structured.state?.trim() || stateFallback;
+  const arrestDate = structured.arrestDate?.trim() || arrestDateFallback;
+  const accusedAge = typeof structured.accusedAge === "number" && Number.isFinite(structured.accusedAge)
+    ? structured.accusedAge
+    : ageFallback;
 
   return {
     title: inferTitle(structured, firNumber),
     accusedName: structured.accused[0] ?? "",
-    accusedAge: Number.isFinite(accusedAge) ? accusedAge : null,
+    accusedAge,
     firNumber,
-    policeStation: toTitleCase(policeStation),
-    district: toTitleCase(district),
-    state: toTitleCase(state),
+    policeStation: toTitleCase(policeStationRaw),
+    district: toTitleCase(districtRaw),
+    state: toTitleCase(stateRaw),
     sections: structured.sections.join(", "),
     allegations: structured.allegations.join(" "),
     arrestDate,
@@ -451,9 +518,20 @@ export async function extractStructuredDocument(text: string): Promise<{ structu
   const chunks = createSmartChunks(text);
   const startedAt = Date.now();
   const extractedChunks: StructuredExtraction[] = [];
+  let aiCalls = 0;
 
   for (let index = 0; index < chunks.length; index += 1) {
-    extractedChunks.push(await extractChunk(chunks[index], detectedDocumentType, true, index, chunks.length));
+    try {
+      aiCalls += 1;
+      const chunkExtraction = await extractChunk(chunks[index], detectedDocumentType, true, index, chunks.length);
+      extractedChunks.push(chunkExtraction);
+    } catch (chunkError) {
+      console.warn(`[Document Parser] Chunk ${index + 1}/${chunks.length} extraction failed:`, chunkError instanceof Error ? chunkError.message : chunkError);
+    }
+  }
+
+  if (extractedChunks.length === 0) {
+    throw new Error(`Failed to extract structured data from any of the ${chunks.length} document chunks.`);
   }
 
   return {
@@ -462,7 +540,7 @@ export async function extractStructuredDocument(text: string): Promise<{ structu
       detectedDocumentType,
       chunkingTriggered: true,
       chunkCount: chunks.length,
-      aiCalls: chunks.length,
+      aiCalls,
       aiDurationMs: Date.now() - startedAt,
     },
   };

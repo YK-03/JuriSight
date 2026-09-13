@@ -2,10 +2,6 @@ const PAGE_MARKER_PATTERNS = [
   /page\s+\d+(\s+of\s+\d+)?/i,
   /generated\s+on/i,
   /digitally\s+signed/i,
-  /court\s+of/i,
-  /high\s+court/i,
-  /sessions\s+court/i,
-  /police\s+station/i,
 ];
 
 function normalizeLineForComparison(line: string): string {
