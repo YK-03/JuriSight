@@ -19,7 +19,7 @@ export function Recommendations({ recommendations }: RecommendationsProps) {
               key={i}
               className="flex items-start gap-2 text-sm text-text-primary mb-2 last:mb-0"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-accent-gold mt-1.5 flex-shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 flex-shrink-0" />
               <span>{rec}</span>
             </li>
           ))}

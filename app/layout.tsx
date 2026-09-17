@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   description: "Institutional bail analysis support under Indian CrPC",
   icons: {
     icon: [
-      { url: "/icon.svg?v=3", type: "image/svg+xml" },
+      { url: "/icon.svg?v=5", type: "image/svg+xml" },
     ],
-    shortcut: ["/icon.svg?v=3"],
+    shortcut: ["/icon.svg?v=5"],
   },
 };
 

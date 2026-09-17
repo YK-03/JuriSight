@@ -12,7 +12,7 @@ interface ActionCardProps {
 
 export function ActionCard({ title, description, icon, href, onClick }: ActionCardProps) {
   const className =
-    "flex items-start gap-4 rounded-2xl border border-border/40 bg-bg-card p-5 text-left transition-all group hover:border-border/80 hover:bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent-gold/10";
+    "flex items-start gap-4 rounded-2xl border border-border/40 bg-bg-card p-5 text-left transition-all group hover:border-border/80 hover:bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent/10";
 
   const content = (
     <>

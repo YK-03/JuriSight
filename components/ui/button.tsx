@@ -47,7 +47,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           "relative inline-flex items-center justify-center rounded-[10px] font-medium whitespace-nowrap",
           "transition-all duration-200 ease-in-out",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--btn-focus-ring)] focus-visible:ring-offset-2",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--btn-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary",
           // Hover interactions (disabled shouldn't animate)
           !isDisabled && "hover:-translate-y-[1px]",
           isDisabled && "opacity-50 cursor-not-allowed pointer-events-none",

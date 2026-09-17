@@ -287,8 +287,8 @@ function AnalyzeIntakeContent() {
             </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-10 shadow-panel">
               <div className="mx-auto flex max-w-md flex-col items-center text-center">
-                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-accent-gold/20 bg-accent-gold/10">
-                  <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-border border-t-accent-gold" />
+                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-accent/20 bg-accent/10">
+                  <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-border border-t-accent" />
                 </div>
                 <h1 className="text-2xl font-semibold text-text-primary">Analyzing your case</h1>
                 <p className="mt-3 text-sm leading-6 text-text-secondary">
@@ -316,7 +316,7 @@ function AnalyzeIntakeContent() {
               </Link>
             </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-8 shadow-panel">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent-gold">Case Intake</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Case Intake</p>
               <h1 className="mt-3 text-3xl font-semibold text-text-primary">Analyze a new matter</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">
                 Enter the core facts in a structured format. JuriSight will combine them into a single case summary and run a full analysis.
@@ -324,7 +324,7 @@ function AnalyzeIntakeContent() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-accent-gold/25 bg-accent-gold/10 px-5 py-4 text-sm leading-6 text-text-primary">
+          <div className="rounded-2xl border border-accent/25 bg-accent/10 px-5 py-4 text-sm leading-6 text-text-primary">
             This analysis is for legal research and internal review. Confirm all conclusions against the applicable statute, court orders, and current procedural posture.
           </div>
 
@@ -340,19 +340,19 @@ function AnalyzeIntakeContent() {
                   <input
                     value={form.caseTitle}
                     onChange={(event) => updateField("caseTitle", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="State vs. Example Matter"
                   />
                 </label>
 
                 <label className="flex flex-col gap-2 md:col-span-2">
-                  <span className="text-sm font-medium text-text-primary">What happened <span className="text-accent-gold">(required)</span></span>
+                  <span className="text-sm font-medium text-text-primary">What happened <span className="text-accent">(required)</span></span>
                   <textarea
                     value={form.whatHappened}
                     onChange={(event) => updateField("whatHappened", event.target.value)}
                     rows={7}
                     className={`rounded-2xl border bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:ring-4 ${
-                      error ? "border-state-error/60 focus:border-state-error focus:ring-state-error/10" : "border-border/50 focus:border-accent-gold focus:ring-accent-gold/10"
+                      error ? "border-state-error/60 focus:border-state-error focus:ring-state-error/10" : "border-border/50 focus:border-accent focus:ring-accent/10"
                     }`}
                     placeholder="Describe the incident, allegations, timeline, police or court action, and any immediate legal concern."
                   />
@@ -364,7 +364,7 @@ function AnalyzeIntakeContent() {
                   <input
                     value={form.incidentDate}
                     onChange={(event) => updateField("incidentDate", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="Date, period, or sequence of events"
                   />
                 </label>
@@ -374,7 +374,7 @@ function AnalyzeIntakeContent() {
                   <input
                     value={form.incidentLocation}
                     onChange={(event) => updateField("incidentLocation", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="City, district, police station, or jurisdiction"
                   />
                 </label>
@@ -393,7 +393,7 @@ function AnalyzeIntakeContent() {
                     value={form.partiesInvolved}
                     onChange={(event) => updateField("partiesInvolved", event.target.value)}
                     rows={4}
-                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="Accused, complainant, witnesses, employer, family members, police officials, or institutions."
                   />
                 </label>
@@ -404,7 +404,7 @@ function AnalyzeIntakeContent() {
                     value={form.proceduralStage}
                     onChange={(event) => updateField("proceduralStage", event.target.value)}
                     rows={4}
-                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="FIR filed, investigation pending, charge sheet filed, summons received, trial ongoing, anticipatory bail, regular bail, etc."
                   />
                 </label>
@@ -423,7 +423,7 @@ function AnalyzeIntakeContent() {
                     value={form.evidenceDetails}
                     onChange={(event) => updateField("evidenceDetails", event.target.value)}
                     rows={5}
-                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="Contracts, call records, FIR copy, medical report, notice, screenshots, bank trail, CCTV, witness statements, or missing records."
                   />
                 </label>
@@ -434,7 +434,7 @@ function AnalyzeIntakeContent() {
                     value={form.legalQuestions}
                     onChange={(event) => updateField("legalQuestions", event.target.value)}
                     rows={5}
-                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent-gold focus:ring-4 focus:ring-accent-gold/10"
+                    className="rounded-2xl border border-border/50 bg-bg-primary px-4 py-3 text-sm leading-6 text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                     placeholder="Mention urgency, likely offences, bail concern, evidence weakness, procedural defects, or precedent search needs."
                   />
                 </label>
@@ -476,7 +476,7 @@ function IntakePageFallback() {
   return (
     <DashboardShell>
       <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-border border-t-accent-gold" />
+        <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-border border-t-accent" />
       </main>
     </DashboardShell>
   );

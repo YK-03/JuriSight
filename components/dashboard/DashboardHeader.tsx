@@ -12,7 +12,7 @@ export function DashboardHeader() {
           <span className="hidden text-xs font-mono uppercase tracking-[0.16em] text-text-secondary sm:inline">
             Your workspace
           </span>
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent-gold/45 bg-bg-card p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-accent-gold hover:shadow-[0_6px_18px_rgba(200,166,74,0.2)]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent/45 bg-bg-card p-0.5 shadow-panel transition-all duration-200 hover:border-accent">
             <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
           </div>
         </div>

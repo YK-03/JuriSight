@@ -130,7 +130,7 @@ export default function DocumentUploader({ onExtracted }: DocumentUploaderProps)
     <div className="grid gap-3 rounded-xl border border-dashed border-border bg-bg-card/40 p-4">
       <div
         className={`rounded-lg border px-4 py-5 transition ${
-          isDragging ? "border-accent-gold bg-accent-gold/5" : "border-border bg-bg-secondary/35"
+          isDragging ? "border-accent bg-accent/5" : "border-border bg-bg-secondary/35"
         }`}
         onDragOver={(event) => {
           event.preventDefault();
@@ -171,11 +171,11 @@ export default function DocumentUploader({ onExtracted }: DocumentUploaderProps)
           {status === "idle" ? <span className="text-text-secondary">Ready to extract structured case facts.</span> : null}
           {status === "loading" ? (
             <span className="inline-flex items-center gap-2 text-text-primary">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent-gold" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent" />
               Reading document...
             </span>
           ) : null}
-          {status === "done" ? <span className="text-green-500">[Done] Fields auto-filled</span> : null}
+          {status === "done" ? <span className="text-state-success">[Done] Fields auto-filled</span> : null}
         </div>
         <Button type="button" onClick={extract} disabled={!file || status === "loading"}>
           Extract from Document

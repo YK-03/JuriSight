@@ -1,22 +1,41 @@
 "use client";
 
-import React, { useState, useRef, KeyboardEvent } from "react";
+import React, { forwardRef, useImperativeHandle, useRef, useState, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { extractDocumentFromPdf } from "@/lib/extract-document-client";
+
+export type HeroInputHandle = {
+  openFilePicker: () => void;
+  focusInput: () => void;
+};
 
 interface HeroInputProps {
   onSubmit?: (query: string, attachedFile?: File | null, attachedText?: string | null) => void;
 }
 
-export function HeroInput({ onSubmit }: HeroInputProps = {}) {
+export const HeroInput = forwardRef<HeroInputHandle, HeroInputProps>(function HeroInput(
+  { onSubmit },
+  ref,
+) {
   const [description, setDescription] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [attachedText, setAttachedText] = useState<string | null>(null);
   const [fileStatus, setFileStatus] = useState<"idle" | "extracting" | "ready" | "error">("idle");
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [emptyError, setEmptyError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => fileInputRef.current?.click(),
+    focusInput: () => textareaRef.current?.focus(),
+  }));
+
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setDescription(e.target.value);
+    if (emptyError) {
+      setEmptyError(null);
+    }
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
@@ -33,76 +52,46 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
       return;
     }
 
-    if (file.type !== "application/pdf") {
-      setAttachedFile(null);
-      setAttachedText(null);
-      setFileStatus("error");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setAttachedFile(null);
-      setAttachedText(null);
-      setFileStatus("error");
-      return;
-    }
-
     setAttachedFile(file);
     setAttachedText(null);
+    setFileError(null);
+    setEmptyError(null);
     setFileStatus("extracting");
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const result = await extractDocumentFromPdf(file);
 
-      const res = await fetch("/api/extract-document", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data) {
-        setFileStatus("error");
-        return;
-      }
-
-      const extractedParts = [
-        data.title && `Title: ${data.title}`,
-        data.accusedName && `Accused: ${data.accusedName}`,
-        data.firNumber && `FIR: ${data.firNumber}`,
-        data.sections && `Sections: ${data.sections}`,
-        data.allegations && `Allegations: ${data.allegations}`,
-        data.policeStation && `Police Station: ${data.policeStation}`,
-        data.district && `District: ${data.district}`,
-        data.state && `State: ${data.state}`,
-        data.arrestDate && `Arrest Date: ${data.arrestDate}`,
-        data.custodyDuration && `Custody Duration: ${data.custodyDuration}`,
-        data.previousConvictions != null && `Previous Convictions: ${data.previousConvictions ? "Yes" : "No"}`,
-        data.notes && `Notes: ${data.notes}`,
-      ].filter(Boolean).join("\n");
-
-      setAttachedText(extractedParts || "Document processed but no content could be extracted.");
-      setFileStatus("ready");
-    } catch {
+    if (result.ok === false) {
       setFileStatus("error");
+      setFileError(result.error);
+      return;
     }
+
+    setAttachedText(result.text);
+    setFileStatus("ready");
   };
 
   const clearAttachment = () => {
     setAttachedFile(null);
     setAttachedText(null);
     setFileStatus("idle");
+    setFileError(null);
   };
 
-  const submitAnalysis = async () => {
+  const submitAnalysis = () => {
     const trimmedDescription = description.trim();
     if (!trimmedDescription && !attachedText) {
+      setEmptyError("Tell Jurisight what you're working on, or attach a document.");
+      textareaRef.current?.focus();
+      return;
+    }
+
+    if (fileStatus === "extracting") {
       return;
     }
 
     onSubmit?.(trimmedDescription, attachedFile, attachedText);
     setDescription("");
+    setEmptyError(null);
     clearAttachment();
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -117,23 +106,23 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
   };
 
   return (
-    <div className="w-full flex flex-col gap-4">
-      <div className="relative flex flex-col bg-bg-card border border-border/60 hover:border-accent-gold/40 shadow-panel rounded-2xl p-2 transition-all duration-300 focus-within:border-accent-gold/60 focus-within:ring-4 focus-within:ring-accent-gold/10">
+    <div className="w-full flex flex-col gap-5">
+      <div className="relative flex flex-col bg-bg-card border border-border hover:border-accent/40 shadow-panel rounded-xl p-2 transition-all duration-300 focus-within:border-accent/60 focus-within:ring-4 focus-within:ring-accent/10">
         {attachedFile && (
           <div className="mx-2 mt-1 mb-2 flex items-center gap-2 rounded-lg border border-border bg-bg-secondary px-3 py-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent-gold">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
             <span className="flex-1 truncate text-xs text-text-secondary">{attachedFile.name}</span>
             {fileStatus === "extracting" && (
-              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-[2px] border-border border-t-accent-gold" />
+              <span className="text-[11px] text-text-secondary">Your document is being processed...</span>
             )}
             {fileStatus === "ready" && (
-              <span className="text-[10px] font-medium text-state-success">Ready</span>
+              <span className="text-[10px] font-medium text-state-success">Attached</span>
             )}
             {fileStatus === "error" && (
-              <span className="text-[10px] font-medium text-state-error">Failed</span>
+              <span className="text-[10px] font-medium text-state-error">Not attached</span>
             )}
             <Button
               type="button"
@@ -141,6 +130,7 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
               size="icon"
               onClick={clearAttachment}
               className="h-6 w-6 p-1 text-text-secondary hover:text-text-primary"
+              aria-label="Remove attachment"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" />
@@ -149,7 +139,7 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             </Button>
           </div>
         )}
-        
+
         <div className="flex items-end">
           <input
             ref={fileInputRef}
@@ -164,8 +154,9 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             size="icon"
             onClick={() => fileInputRef.current?.click()}
             disabled={fileStatus === "extracting"}
-            className="text-text-secondary hover:text-accent-gold"
-            title="Upload document"
+            className="text-text-secondary hover:text-accent"
+            title="Attach PDF"
+            aria-label="Attach PDF"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -187,16 +178,17 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
             value={description}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            className="flex-1 min-h-[60px] max-h-[200px] bg-transparent resize-none outline-none text-text-primary placeholder:text-text-secondary px-3 py-4 text-base leading-relaxed font-sans"
-            placeholder="Describe a case, ask a legal question, or upload a document..."
-            rows={1}
+            className="flex-1 min-h-[72px] max-h-[200px] bg-transparent resize-none outline-none text-text-primary placeholder:text-text-secondary px-3 py-4 text-base leading-relaxed font-sans"
+            placeholder="Ask Jurisight..."
+            rows={2}
           />
           <Button
             variant="primary"
             size="icon"
-            onClick={submitAnalysis}
+            onClick={() => submitAnalysis()}
             disabled={(!description.trim() && fileStatus !== "ready") || fileStatus === "extracting"}
             className="ml-2 mb-1"
+            aria-label="Send"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -216,9 +208,13 @@ export function HeroInput({ onSubmit }: HeroInputProps = {}) {
           </Button>
         </div>
       </div>
+
+      {fileError ? <p className="px-1 text-sm text-state-error">{fileError}</p> : null}
+      {emptyError ? <p className="px-1 text-sm text-state-error">{emptyError}</p> : null}
+
       <p className="text-[13px] text-text-secondary text-center px-4 font-mono tracking-[0.02em] uppercase">
-        JuriSight uses advanced AI. <span className="text-accent-gold">Verify critical legal information.</span>
+        JuriSight uses advanced AI. <span className="text-accent">Verify critical legal information.</span>
       </p>
     </div>
   );
-}
+});

@@ -36,13 +36,21 @@ export default function DashboardPage() {
 
   return (
     <DashboardShell>
-      <main className="flex-1 flex flex-col items-center w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-24 space-y-12 pb-24">
+      <main className="flex-1 flex flex-col items-center w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-24 space-y-10 pb-24">
+        <div className="w-full space-y-3 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
+            What&apos;s on your desk?
+          </h1>
+          <p className="mx-auto max-w-xl text-sm leading-6 text-text-secondary sm:text-base">
+            Tell Jurisight what you&apos;re working on, ask a legal question, or add a document.
+          </p>
+        </div>
         <HeroInput onSubmit={handleHeroSubmit} />
         <QuickActions />
         <RecentCases onOpenWithHistory={handleOpenWithHistory} />
       </main>
-      
-      <ChatPanel 
+
+      <ChatPanel
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         initialQuery={initialQuery}

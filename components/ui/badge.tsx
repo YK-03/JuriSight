@@ -7,7 +7,8 @@ const variants = {
   success: "bg-state-success/10 text-state-success border-state-success/50",
   warning: "bg-state-warning/10 text-state-warning border-state-warning/50",
   error: "bg-state-error/10 text-state-error border-state-error/50",
-  gold: "bg-accent-gold/10 text-accent-gold border-accent-gold/50",
+  gold: "bg-accent/10 text-accent border-accent/50",
+  accent: "bg-accent/10 text-accent border-accent/50",
 };
 
 export function Badge({

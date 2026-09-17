@@ -155,9 +155,9 @@ export default function GuestPage() {
   }
 
   const fieldClassName =
-    "h-11 w-full rounded-xl border border-border bg-bg-card px-3 text-sm text-text-primary outline-none transition focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/10";
+    "h-11 w-full rounded-xl border border-border bg-bg-card px-3 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10";
   const areaClassName =
-    "w-full rounded-xl border border-border bg-bg-card px-3 py-3 text-sm text-text-primary outline-none transition placeholder:text-text-secondary focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/10";
+    "w-full rounded-xl border border-border bg-bg-card px-3 py-3 text-sm text-text-primary outline-none transition placeholder:text-text-secondary focus:border-accent focus:ring-2 focus:ring-accent/10";
 
   return (
     <main className="min-h-screen bg-bg-primary text-text-primary">
@@ -165,7 +165,7 @@ export default function GuestPage() {
         <div className="mx-auto max-w-2xl text-center">
           <Link
             href={"/" as Route}
-            className="inline-flex items-center gap-2 text-sm font-medium text-accent-gold transition hover:text-accent-gold/80"
+            className="inline-flex items-center gap-2 text-sm font-medium text-accent transition hover:text-accent/80"
           >
             <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none">
               <path
@@ -178,7 +178,7 @@ export default function GuestPage() {
             </svg>
             Back to JuriSight
           </Link>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-accent-gold">
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.28em] text-accent">
             Guest Bail Eligibility
           </p>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
@@ -422,7 +422,7 @@ export default function GuestPage() {
               {isSignedIn ? (
                 <Link
                   href={"/dashboard" as Route}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-accent-gold transition hover:text-accent-gold/80"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent/80"
                 >
                   View full analysis in Dashboard
                   <ArrowIcon />
@@ -431,14 +431,14 @@ export default function GuestPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
                   <Link
                     href={"/sign-in" as Route}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-accent-gold transition hover:text-accent-gold/80"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent/80"
                   >
                     Sign in to see full risk breakdown
                     <ArrowIcon />
                   </Link>
                   <Link
                     href={"/sign-up" as Route}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary transition hover:text-accent-gold"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary transition hover:text-accent"
                   >
                     Create free account
                     <ArrowIcon />

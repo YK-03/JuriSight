@@ -24,7 +24,7 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
       }
     }
 
-    return "bg-accent-gold/10 text-accent-gold border-accent-gold/20";
+    return "bg-accent/10 text-accent border-accent/20";
   };
 
   return (
@@ -79,7 +79,7 @@ export function CaseItem({ title, date, isLast, preview, onClick, onDelete, onSh
               e.stopPropagation();
               onShare();
             }}
-            className="h-9 w-9 shrink-0 text-text-secondary hover:text-accent-gold hover:bg-accent-gold/10"
+            className="h-9 w-9 shrink-0 text-text-secondary hover:text-accent hover:bg-accent/10"
             aria-label={`Share ${title}`}
             title="Copy share link"
           >

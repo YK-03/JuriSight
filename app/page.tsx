@@ -26,7 +26,7 @@ export default function LandingPage() {
                 <Button
                   variant="secondary"
                   size="md"
-                  className="hidden min-w-[6.5rem] border-accent-gold/40 font-semibold hover:bg-accent-gold/10 sm:inline-flex"
+                  className="hidden min-w-[6.5rem] border-accent/40 font-semibold hover:bg-accent/10 sm:inline-flex"
                 >
                   Sign In
                 </Button>
@@ -37,11 +37,11 @@ export default function LandingPage() {
                 asChild
                 variant="secondary"
                 size="md"
-                className="hidden min-w-[7.5rem] border-accent-gold/50 font-semibold shadow-[0_4px_14px_rgba(17,24,39,0.06)] hover:bg-accent-gold/10 sm:inline-flex"
+                className="hidden min-w-[7.5rem] border-accent/50 font-semibold shadow-panel hover:bg-accent/10 sm:inline-flex"
               >
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent-gold/45 bg-bg-card p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-accent-gold hover:shadow-[0_6px_18px_rgba(200,166,74,0.2)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent/45 bg-bg-card p-0.5 shadow-panel transition-all duration-200 hover:border-accent">
                 <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
               </div>
             </Show>
@@ -49,7 +49,7 @@ export default function LandingPage() {
         </div>
         <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <Small className="mb-4 block font-mono uppercase tracking-[0.28em] text-accent-gold">Legal Decision Support</Small>
+            <Small className="mb-4 block font-mono uppercase tracking-[0.28em] text-accent">Legal Decision Support</Small>
             <H1 className="max-w-4xl font-display text-5xl leading-tight md:text-7xl">Legal Intelligence For Indian Criminal Cases</H1>
             <Lead className="mt-6 max-w-2xl">
               Case analysis, risk scoring, applicable IPC/BNS sections, legal precedents, and AI chat </Lead>
@@ -68,7 +68,7 @@ export default function LandingPage() {
             </div>
             <a
               href="/guest"
-              className="mt-2 block text-center text-sm text-accent-gold underline underline-offset-4 transition-colors hover:text-accent-gold/80"
+              className="mt-2 block text-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-accent/80"
             >
               Try a free eligibility check - no account needed
             </a>
@@ -85,7 +85,7 @@ export default function LandingPage() {
               />
             </div>
             <div className="px-2 pb-2 pt-3">
-              <Muted className="font-mono uppercase tracking-[0.16em] text-accent-gold">Symbol of impartial justice</Muted>
+              <Muted className="font-mono uppercase tracking-[0.16em] text-accent">Symbol of impartial justice</Muted>
             </div>
           </div>
         </div>
@@ -146,7 +146,7 @@ export default function LandingPage() {
           ].map(([n, t, d]) => (
             <Card key={t} className="fx-card group">
               <CardContent className="space-y-2 py-6">
-                <Small className="font-mono text-accent-gold">STEP {n}</Small>
+                <Small className="font-mono text-accent">STEP {n}</Small>
                 <H3 className="text-xl font-medium">{t}</H3>
                 <Muted>{d}</Muted>
               </CardContent>
@@ -158,7 +158,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-7xl px-6 pb-16">
         <div className="disclaimer-fx panel relative overflow-hidden p-6">
           <div className="relative z-10">
-            <Small className="mb-2 block font-mono uppercase tracking-[0.2em] text-accent-gold">Disclaimer</Small>
+            <Small className="mb-2 block font-mono uppercase tracking-[0.2em] text-accent">Disclaimer</Small>
             <P className="mt-0 text-sm text-text-secondary">
               JuriSight provides AI-assisted legal decision support for institutional review only. It is not legal advice,
               does not create an advocate-client relationship, and must not replace independent judicial or professional legal judgment.
@@ -169,7 +169,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-border px-6 py-8 text-center text-sm text-text-secondary">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 font-mono uppercase tracking-[0.16em]">
-          <span className="text-accent-gold">JuriSight</span>
+          <span className="text-accent">JuriSight</span>
           <span className="text-text-secondary/60">&bull;</span>
           <span>{currentYear}</span>
           <span className="text-text-secondary/60">&bull;</span>

@@ -30,7 +30,7 @@ export function Precedents({ precedents }: PrecedentsProps) {
                   href={precedent.searchLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-text-primary underline decoration-accent-gold/40 underline-offset-4 transition hover:text-accent-gold"
+                  className="text-sm font-medium text-text-primary underline decoration-accent/40 underline-offset-4 transition hover:text-accent"
                 >
                   {precedent.case}
                 </a>
@@ -38,7 +38,7 @@ export function Precedents({ precedents }: PrecedentsProps) {
                   href={precedent.searchLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded border border-accent-gold/30 bg-accent-gold/10 px-1.5 py-0.5 text-xs text-accent-gold transition hover:bg-accent-gold/20"
+                  className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-xs text-accent transition hover:bg-accent/20"
                 >
                   View Source
                 </a>

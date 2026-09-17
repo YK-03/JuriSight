@@ -1,5 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="JuriSight favicon">
-  <g fill="none" stroke="#C9A84C" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <style>
+    :root {
+      color: #2C4A6E;
+    }
+    path {
+      stroke: #2C4A6E;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color: #8AA4C0;
+      }
+      path {
+        stroke: #8AA4C0;
+      }
+    }
+  </style>
+  <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M32 13v36"/>
     <path d="M18 21h28"/>
     <path d="M13.5 24.5l7 11.2H6.5l7-11.2z"/>

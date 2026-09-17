@@ -25,7 +25,7 @@ export function ApplicableSections({ sections }: ApplicableSectionsProps) {
               key={i}
               className="flex items-start gap-3 pb-3 mb-3 border-b border-border/40 last:border-0 last:pb-0 last:mb-0"
             >
-              <span className="text-xs font-bold text-accent-gold whitespace-nowrap w-16 pt-0.5 flex-shrink-0">
+              <span className="text-xs font-bold text-accent whitespace-nowrap w-16 pt-0.5 flex-shrink-0">
                 {sec.code}
               </span>
               <div>

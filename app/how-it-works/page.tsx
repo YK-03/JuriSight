@@ -83,7 +83,7 @@ export default function HowItWorksPage() {
                 <Button
                   variant="secondary"
                   size="md"
-                  className="hidden min-w-[6.5rem] border-accent-gold/40 font-semibold hover:bg-accent-gold/10 sm:inline-flex"
+                  className="hidden min-w-[6.5rem] border-accent/40 font-semibold hover:bg-accent/10 sm:inline-flex"
                 >
                   Sign In
                 </Button>
@@ -94,11 +94,11 @@ export default function HowItWorksPage() {
                 asChild
                 variant="secondary"
                 size="md"
-                className="hidden min-w-[7.5rem] border-accent-gold/50 font-semibold shadow-[0_4px_14px_rgba(17,24,39,0.06)] hover:bg-accent-gold/10 sm:inline-flex"
+                className="hidden min-w-[7.5rem] border-accent/50 font-semibold shadow-panel hover:bg-accent/10 sm:inline-flex"
               >
                 <Link href={"/dashboard" as Route}>Dashboard</Link>
               </Button>
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent-gold/45 bg-bg-card p-0.5 shadow-[0_4px_14px_rgba(17,24,39,0.1)] transition-all duration-200 hover:border-accent-gold">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-accent/45 bg-bg-card p-0.5 shadow-panel transition-all duration-200 hover:border-accent">
                 <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
               </div>
             </Show>
@@ -108,7 +108,7 @@ export default function HowItWorksPage() {
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-3xl px-6 pt-16 pb-12 text-center">
-        <span className="text-sm font-mono uppercase tracking-[0.28em] text-accent-gold">
+        <span className="text-sm font-mono uppercase tracking-[0.28em] text-accent">
           How It Works
         </span>
         <h1 className="mt-4 text-2xl font-bold text-text-primary sm:text-3xl">
@@ -130,18 +130,18 @@ export default function HowItWorksPage() {
             {STEPS.map((step) => (
               <div key={step.number} className="relative flex gap-6">
                 {/* Icon bubble */}
-                <div className="relative z-10 flex-shrink-0 w-16 h-16 rounded-2xl border border-accent-gold/30 bg-accent-gold/10 flex items-center justify-center text-accent-gold">
+                <div className="relative z-10 flex-shrink-0 w-16 h-16 rounded-2xl border border-accent/30 bg-accent/10 flex items-center justify-center text-accent">
                   {step.icon}
                 </div>
 
                 {/* Content */}
                 <div className="rounded-2xl border border-border bg-bg-card shadow-panel px-6 py-5 flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-xs font-mono text-accent-gold tracking-widest">{step.number}</span>
+                    <span className="text-xs font-mono text-accent tracking-widest">{step.number}</span>
                     <h2 className="text-base font-semibold text-text-primary">{step.title}</h2>
                   </div>
                   <p className="text-sm text-text-secondary leading-relaxed">{step.description}</p>
-                  <p className="mt-2 text-xs text-accent-gold font-medium">{step.detail}</p>
+                  <p className="mt-2 text-xs text-accent font-medium">{step.detail}</p>
                 </div>
               </div>
             ))}
@@ -150,7 +150,7 @@ export default function HowItWorksPage() {
 
         {/* ── Capabilities grid ────────────────────────────────────────── */}
         <div>
-          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-accent-gold mb-5">
+          <h2 className="text-sm font-mono uppercase tracking-[0.2em] text-accent mb-5">
             What&apos;s included
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -189,7 +189,7 @@ export default function HowItWorksPage() {
 
         {/* ── Disclaimer ───────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border bg-bg-card shadow-panel p-6">
-          <span className="text-xs font-mono uppercase tracking-[0.2em] text-accent-gold block mb-2">
+          <span className="text-xs font-mono uppercase tracking-[0.2em] text-accent block mb-2">
             Disclaimer
           </span>
           <p className="text-sm text-text-secondary">
@@ -219,7 +219,7 @@ export default function HowItWorksPage() {
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <footer className="border-t border-border px-6 py-8 text-center text-sm text-text-secondary">
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-3 font-mono uppercase tracking-[0.16em]">
-          <span className="text-accent-gold">JuriSight</span>
+          <span className="text-accent">JuriSight</span>
           <span className="text-text-secondary/60">&bull;</span>
           <span>{currentYear}</span>
           <span className="text-text-secondary/60">&bull;</span>

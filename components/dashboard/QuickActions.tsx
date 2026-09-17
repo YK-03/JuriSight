@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { ActionCard } from "./ActionCard";
 import { useRouter } from "next/navigation";
 
@@ -12,7 +13,7 @@ export function QuickActions() {
         <ActionCard
           title="Analyze Case"
           description="Evaluate merits, risks, and precedents."
-          href="/dashboard/analyze"
+          href={"/dashboard/analyze" as Route}
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -32,8 +33,8 @@ export function QuickActions() {
           }
         />
         <ActionCard
-          title="Check Eligibility"
-          description="Verify timelines, jurisdictions, and rules."
+          title="Bail Eligibility"
+          description="Check eligibility, timelines, and applicable rules."
           onClick={() => router.push("/dashboard/bail-strategy")}
           icon={
             <svg

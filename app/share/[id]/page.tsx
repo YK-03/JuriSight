@@ -52,7 +52,7 @@ export default function SharePage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent-gold" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
           <p className="text-sm text-text-secondary">Loading shared analysis…</p>
         </div>
       </div>
@@ -71,7 +71,7 @@ export default function SharePage() {
           <p className="text-sm text-text-secondary">{error || "Analysis not found."}</p>
           <Link
             href="/"
-            className="text-sm text-accent-gold hover:underline"
+            className="text-sm text-accent hover:underline"
           >
             Go to JuriSight →
           </Link>

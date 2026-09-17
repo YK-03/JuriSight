@@ -16,7 +16,8 @@ const config: Config = {
           card: "rgb(var(--bg-card) / <alpha-value>)",
         },
         accent: {
-          gold: "rgb(var(--accent-gold) / <alpha-value>)",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          muted: "rgb(var(--accent-muted) / <alpha-value>)",
         },
         text: {
           primary: "rgb(var(--text-primary) / <alpha-value>)",
@@ -28,8 +29,8 @@ const config: Config = {
           warning: "rgb(var(--state-warning) / <alpha-value>)",
         },
         border: {
-          DEFAULT: "rgb(var(--border-default) / 0.14)",
-          hover: "rgb(var(--border-hover) / 0.24)",
+          DEFAULT: "rgb(var(--border-default) / <alpha-value>)",
+          hover: "rgb(var(--border-hover) / <alpha-value>)",
         },
       },
       fontFamily: {

@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { getOrCreateUser } from "@/lib/user-sync";
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getOrCreateUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rawLimit = new URL(req.url).searchParams.get("limit");
+  const requestedLimit = rawLimit ? Number(rawLimit) : Number.NaN;
+  const take = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50)
+    : 5;
 
   const sessions = await db.chatSession.findMany({
     where: {
@@ -15,7 +21,7 @@ export async function GET() {
     orderBy: {
       updatedAt: "desc",
     },
-    take: 5,
+    take,
     include: {
       messages: {
         orderBy: {

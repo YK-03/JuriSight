@@ -59,11 +59,11 @@ export function CasePrecedents({ caseId }: { caseId: string }) {
                     href={item.searchLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-semibold text-text-primary underline decoration-accent-gold/40 underline-offset-4 hover:text-accent-gold"
+                    className="text-sm font-semibold text-text-primary underline decoration-accent/40 underline-offset-4 hover:text-accent"
                   >
                     {item.case}
                   </a>
-                  <span className="rounded border border-accent-gold/30 bg-accent-gold/10 px-2 py-1 font-mono text-[11px] text-accent-gold">
+                  <span className="rounded border border-accent/30 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent">
                     View Source
                   </span>
                 </div>
