@@ -11,6 +11,13 @@ import { AnalyzeRequest, CaseAnalysis } from "@/lib/analysis-types";
 import db from "@/lib/db";
 import { buildFallbackPrecedents, normalizePrecedents } from "@/lib/precedents";
 import { getOrCreateUser } from "@/lib/user-sync";
+import { runLegalRules, LegalRuleInput } from "@/lib/legal-rules";
+import {
+  formatAuthoritativeSectionsBlock,
+  mergeApplicableSections,
+  parseSuppliedSections,
+} from "@/lib/section-preservation";
+import { normalizeRiskFactors, toAnalysisRiskFactors } from "@/lib/risk-factors";
 
 export const runtime = "nodejs";
 
@@ -50,6 +57,36 @@ function normalizeCase(input: string) {
     facts: extractKeyFacts(input),
   };
 }
+
+/** Convert free-text custody duration to an integer number of days. */
+function parseCustodyDaysForRules(custodyDuration: string): number {
+  const val = custodyDuration.toLowerCase();
+  if (val.includes("under") || val.includes("30")) return 25;
+  if (val.includes("1 to 6") || val.includes("1-6")) return 90;
+  if (val.includes("6 to 12") || val.includes("6-12")) return 180;
+  if (val.includes("1 to 2") || val.includes("1-2")) return 365;
+  if (val.includes("over 2") || val.includes("2+")) return 730;
+  // Extract bare number of days/months if present
+  const dayMatch = val.match(/(\d+)\s*day/);
+  if (dayMatch) return parseInt(dayMatch[1], 10);
+  const monthMatch = val.match(/(\d+)\s*month/);
+  if (monthMatch) return parseInt(monthMatch[1], 10) * 30;
+  return 30; // safe default
+}
+
+/** Determine whether a chargesheet has been filed from the procedural stage string. */
+function isChargesheetFiled(proceduralStage: string): boolean {
+  const lower = proceduralStage.toLowerCase();
+  return (
+    lower.includes("chargesheet") ||
+    lower.includes("charge sheet") ||
+    lower.includes("charge-sheet") ||
+    lower.includes("trial") ||
+    lower.includes("session") ||
+    lower.includes("framing of charges")
+  );
+}
+
 
 /**
  * Fully deterministic risk score calculation.
@@ -165,23 +202,6 @@ function normalizeModelVerdict(value: unknown): CaseAnalysis["verdict"] {
   }
 }
 
-function normalizeRiskSeverity(value: unknown): CaseAnalysis["riskFactors"][number]["severity"] {
-  if (typeof value !== "string") {
-    return "Medium";
-  }
-
-  switch (value.trim().toLowerCase()) {
-    case "low":
-      return "Low";
-    case "high":
-      return "High";
-    case "medium":
-    case "moderate":
-    default:
-      return "Medium";
-  }
-}
-
 function mapRiskScoreToConfidenceLevel(riskScore: number): ConfidenceLevel {
   if (riskScore <= 35 || riskScore >= 75) {
     return "HIGH";
@@ -241,6 +261,10 @@ function buildCaseDescriptionFromRecord(caseRecord: {
   specialAct: string | null;
   maximumSentenceYears: number | null;
   timeServedDays: number | null;
+  bailType?: string | null;
+  proceduralStage?: string | null;
+  custodyStatus?: string | null;
+  previousBail?: string | null;
 }) {
   return [
     `Case title: ${caseRecord.title}`,
@@ -248,7 +272,13 @@ function buildCaseDescriptionFromRecord(caseRecord: {
     `Offense type: ${caseRecord.offenseType}`,
     `Section reference: ${caseRecord.section}`,
     `Accused profile: ${caseRecord.accusedProfile}`,
-    `Cooperation level / procedural stage: ${caseRecord.cooperationLevel}`,
+    caseRecord.bailType ? `Bail type: ${caseRecord.bailType}` : "",
+    caseRecord.proceduralStage
+      ? `Procedural stage: ${caseRecord.proceduralStage}`
+      : `Procedural stage: ${caseRecord.cooperationLevel}`,
+    `Cooperation level: ${caseRecord.cooperationLevel}`,
+    caseRecord.custodyStatus ? `Custody status: ${caseRecord.custodyStatus}` : "",
+    caseRecord.previousBail ? `Previous bail history: ${caseRecord.previousBail}` : "",
     `Jurisdiction: ${caseRecord.jurisdiction}`,
     caseRecord.legalFramework ? `Legal framework: ${caseRecord.legalFramework}` : "",
     caseRecord.specialAct ? `Special Act: ${caseRecord.specialAct}` : "",
@@ -396,6 +426,10 @@ export async function POST(req: Request) {
           specialAct: true,
           maximumSentenceYears: true,
           timeServedDays: true,
+          bailType: true,
+          proceduralStage: true,
+          custodyStatus: true,
+          previousBail: true,
         },
       });
 
@@ -405,12 +439,12 @@ export async function POST(req: Request) {
     }
 
     const caseTitle = body.caseTitle || caseRecord?.title || "Not specified";
-    const stage = body.stage || body.proceduralStage || caseRecord?.cooperationLevel || "Unknown";
-    const when = body.when || body.incidentDate || caseRecord?.timeServedDays?.toString() || "Not specified";
-    const where = body.where || body.incidentLocation || caseRecord?.jurisdiction || "Not specified";
-    const people = body.people || body.partiesInvolved || caseRecord?.accusedName || "Not specified";
-    const evidence = body.evidence || body.evidenceDetails || "Not specified";
-    const questions = body.questions || body.legalQuestions || "Not specified";
+    const stage = body.proceduralStage || body.stage || caseRecord?.proceduralStage || caseRecord?.cooperationLevel || "Unknown";
+    const when = body.incidentDate || body.when || caseRecord?.timeServedDays?.toString() || "Not specified";
+    const where = body.incidentLocation || body.where || caseRecord?.jurisdiction || "Not specified";
+    const people = body.partiesInvolved || body.people || caseRecord?.accusedName || "Not specified";
+    const evidence = body.evidenceDetails || body.evidence || "Not specified";
+    const questions = body.legalQuestions || body.questions || "Not specified";
     
     let rawFacts = body.whatHappened || caseRecord?.offenseDescription || body.caseDescription || "";
     if (!rawFacts || rawFacts.trim().length < 20) {
@@ -419,7 +453,90 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const whatHappened = rawFacts.length > 500 ? rawFacts.slice(0, 500) + "..." : rawFacts;
+    // Phase 2: retain up to 8000 chars — enough for any realistic case narrative.
+    // This replaces the previous 500-char hard truncation that was discarding material facts.
+    const whatHappened = rawFacts.length > 8000 ? rawFacts.slice(0, 8000) + "..." : rawFacts;
+
+    // -------------------------------------------------------------------------
+    // Phase 2: normalizeCase — supplement gaps where structured inputs are absent.
+    // Results are used ONLY as fallbacks; Phase 1 structured DB fields take priority.
+    // -------------------------------------------------------------------------
+    const normalized = normalizeCase(rawFacts);
+
+    // -------------------------------------------------------------------------
+    // Phase 2: Resolve structured inputs for deterministic legal rule engine.
+    // Priority: explicit body field > DB record field > normalizeCase inference.
+    // -------------------------------------------------------------------------
+    const resolvedSections = body.sections || caseRecord?.section || normalized.sections || "";
+    const resolvedCustodyStr =
+      body.custodyDuration ||
+      caseRecord?.custodyStatus ||
+      (caseRecord?.timeServedDays ? `${caseRecord.timeServedDays} days` : "") ||
+      "";
+    const resolvedProceduralStage =
+      body.proceduralStage ||
+      caseRecord?.proceduralStage ||
+      normalized.stage ||
+      "Unknown";
+
+    // Parse the supplied sections string into:
+    //   parsedSections  → bare codes for runLegalRules (e.g. ["420","468","120B","BNS 318"])
+    //   suppliedSectionLabels → display labels preserving IPC/BNS prefix (e.g. ["IPC 420","BNS 318"])
+    const {
+      forRules: parsedSections,
+      suppliedRaw: suppliedSectionLabels,
+      parsed: parsedSectionRecords,
+    } = parseSuppliedSections(resolvedSections);
+
+    const custodyDays = parseCustodyDaysForRules(resolvedCustodyStr);
+    const chargesheetFiled = isChargesheetFiled(resolvedProceduralStage);
+
+    // -------------------------------------------------------------------------
+    // Phase 2: Run deterministic legal rule engine.
+    // -------------------------------------------------------------------------
+    const legalRuleInput: LegalRuleInput = {
+      sections: parsedSections,
+      custodyDays,
+      chargesheetFiled,
+      age: 25, // age not yet captured in intake; default to adult
+    };
+    const legalRules = runLegalRules(legalRuleInput);
+
+    // -------------------------------------------------------------------------
+    // Phase 2: Assemble structured case facts block from all Phase 1 fields.
+    // This is passed verbatim to the prompt so every available fact reaches the LLM.
+    // -------------------------------------------------------------------------
+    const resolvedBailType = body.bailType || caseRecord?.bailType || "Not specified";
+    const resolvedAccusedName = body.accusedName || caseRecord?.accusedName || people;
+    const resolvedAccusedProfile = body.accusedProfile || caseRecord?.accusedProfile || "Not specified";
+    const resolvedPriorRecord =
+      body.priorRecord === false || caseRecord?.priorRecord === false
+        ? "No prior record"
+        : body.priorRecord === true || caseRecord?.priorRecord === true
+        ? "Has prior record"
+        : "Not specified";
+    const resolvedPreviousBail = body.previousBail || caseRecord?.previousBail || "Not specified";
+    const resolvedCooperation = body.cooperationLevel || caseRecord?.cooperationLevel || "Not specified";
+    const resolvedOffenseType = body.offenseType || caseRecord?.offenseType || "Not specified";
+
+    const structuredCaseFacts = [
+      `Title: ${caseTitle}`,
+      `Accused Name: ${resolvedAccusedName}`,
+      `Accused Profile: ${resolvedAccusedProfile}`,
+      `Sections Charged: ${resolvedSections || "Not specified"}`,
+      `Offense Type: ${resolvedOffenseType}`,
+      `Bail Type Sought: ${resolvedBailType}`,
+      `Procedural Stage: ${resolvedProceduralStage}`,
+      `Custody Duration: ${resolvedCustodyStr || "Not specified"}`,
+      `Prior Criminal Record: ${resolvedPriorRecord}`,
+      `Previous Bail History: ${resolvedPreviousBail}`,
+      `Cooperation with Investigation: ${resolvedCooperation}`,
+      `Timeline: ${when}`,
+      `Location / Jurisdiction: ${where}`,
+      `Evidence Details: ${evidence}`,
+      `Legal Questions Raised: ${questions}`,
+      `\nCase Narrative:\n${whatHappened}`,
+    ].join("\n");
 
     const finalPrompt = `You are a senior criminal defense lawyer in India specializing in bail law.
 
@@ -435,14 +552,18 @@ OUTPUT FORMAT (MANDATORY)
 {
   "eligibility": "High | Moderate | Low",
   "analysisSummary": "concise 2-3 sentence summary of the bail outlook",
-  "risks": [
-    { "text": "case-specific risk", "level": "LOW | MEDIUM | HIGH" }
+  "riskFactors": [
+    {
+      "title": "short name of the risk (not a full sentence)",
+      "description": "case-specific explanation of why this factor matters, using only supplied facts",
+      "severity": "LOW | MEDIUM | HIGH"
+    }
   ],
   "strengths": [
     { "text": "case-specific strength", "impact": "LOW | MEDIUM | HIGH" }
   ],
   "legalReasoning": "detailed paragraph explaining the eligibility assessment",
-  "applicableSections": ["IPC Section 420", "CrPC Section 439"],
+  "applicableSections": ["IPC Section 468"],
   "precedents": [
     {
       "case": "Sanjay Chandra v. CBI (2012)",
@@ -480,21 +601,26 @@ FACT EXTRACTION RULES (CRITICAL)
 
 - Do NOT return any numeric score fields (no riskScore, no riskBreakdown, no finalScore)
 - The backend calculates risk scores from stable form inputs only
-- Focus on extracting qualitative legal analysis: risks, strengths, reasoning, precedents
+- Focus on extracting qualitative legal analysis: riskFactors, strengths, reasoning, precedents
 - Eligibility is your qualitative assessment: "High", "Moderate", or "Low"
+- riskFactors.title is a concise name (about 3–8 words). It is NOT a truncated sentence.
+- riskFactors.description must explain why the factor exists, its legal/practical significance, or what the prosecution may argue. It must NOT restate the title.
+- Ground every risk factor in the INPUT CASE facts and the deterministic findings above. Do not invent facts.
+- Do not paraphrase the entire case narrative as a risk factor.
+- Return 3 to 5 DISTINCT risk factors. Do not repeat the same underlying factor.
 
 -------------------------------------
-LEGAL INTELLIGENCE RULES
+${legalRules.promptInjection}
 -------------------------------------
 
-- ALWAYS include correct CrPC section:
-  - Anticipatory bail → CrPC 438
-  - Regular bail → CrPC 437 / 439
+${formatAuthoritativeSectionsBlock(suppliedSectionLabels)}
 
-- Include IPC sections based on facts:
-  - Financial diversion → IPC 420, 406
-  - Theft → IPC 379
-  - Cheating → IPC 417, 420
+- Do NOT add CrPC bail sections (438, 437, 439) to applicableSections.
+  The backend adds the correct procedural provisions based on the declared bail type.
+- Do NOT replace or shrink the authoritative supplied section list.
+  The backend always preserves those sections even if you omit them.
+- In applicableSections, you may list additional possible/unverified statutory issues only.
+  Do not treat procedural bail provisions as offence sections.
 
 - PRECEDENTS — return EXACTLY 3, structured as objects:
 
@@ -527,7 +653,7 @@ QUALITY RULES
 -------------------------------------
 
 - No generic statements
-- Risks must be specific to THIS case
+- Risk factor titles and descriptions must be complementary, not duplicates
 - legalReasoning must explain WHY the score exists
 - Never leave any field empty
 - Return ONLY valid JSON — no markdown, no explanation
@@ -535,14 +661,7 @@ QUALITY RULES
 -------------------------------------
 INPUT CASE
 -------------------------------------
-Title: ${caseTitle}
-Stage: ${stage}
-Timeline: ${when}
-Location: ${where}
-Involved Parties: ${people}
-What Happened: ${whatHappened}
-Evidence: ${evidence}
-Legal Questions: ${questions}
+${structuredCaseFacts}
 `;
 
     let mappedAnalysis: CaseAnalysis | null = null;
@@ -556,17 +675,27 @@ Legal Questions: ${questions}
       }
 
       // Normalize risks and strengths into strictly-typed arrays
-      const rawRisks = Array.isArray(parsed.risks)
-        ? parsed.risks
-        : parsed.risks && typeof parsed.risks === "object"
-        ? Object.values(parsed.risks)
-        : [];
-      const normalizedRisks = rawRisks.map((r: any) => {
-        const text = typeof r === "string" ? r.trim() : typeof r?.text === "string" ? r.text.trim() : typeof r?.label === "string" ? r.label.trim() : "Identified Risk";
-        const rawLevel = String(r?.level || r?.severity || "").toUpperCase();
-        const level: "LOW" | "MEDIUM" | "HIGH" = rawLevel === "HIGH" || rawLevel === "LOW" ? rawLevel : "MEDIUM";
-        return { text: text || "Identified Risk", level };
+      const rawRisks =
+        Array.isArray(parsed.riskFactors) && parsed.riskFactors.length > 0
+          ? parsed.riskFactors
+          : Array.isArray(parsed.risks)
+          ? parsed.risks
+          : parsed.risks && typeof parsed.risks === "object"
+          ? Object.values(parsed.risks)
+          : [];
+      const caseFactsForRisks = [
+        structuredCaseFacts,
+        legalRules.promptInjection,
+        resolvedSections,
+      ].join("\n");
+      const normalizedRiskContracts = normalizeRiskFactors(rawRisks, {
+        caseFacts: caseFactsForRisks,
       });
+      const analysisRiskFactors = toAnalysisRiskFactors(normalizedRiskContracts);
+      const normalizedRisks = normalizedRiskContracts.map((factor) => ({
+        text: factor.title,
+        level: factor.severity,
+      }));
 
       const rawStrengths = Array.isArray(parsed.strengths)
         ? parsed.strengths
@@ -583,17 +712,13 @@ Legal Questions: ${questions}
       const rawSections = Array.isArray(parsed.applicableSections)
         ? parsed.applicableSections
         : [];
-      const applicableSections = rawSections
-        .map((s: any) =>
-          typeof s === "string"
-            ? { code: s.trim(), title: s.trim(), relevance: "" }
-            : {
-                code: String(s?.code || "").trim(),
-                title: String(s?.title || s?.code || "").trim(),
-                relevance: String(s?.relevance || s?.description || "").trim(),
-              }
-        )
-        .filter((s: any) => Boolean(s.code || s.title));
+
+      const applicableSections = mergeApplicableSections({
+        parsed: parsedSectionRecords,
+        bailType: resolvedBailType,
+        llmSections: rawSections,
+      });
+
 
       const rawPrecedents = Array.isArray(parsed.precedents)
         ? parsed.precedents
@@ -607,14 +732,28 @@ Legal Questions: ${questions}
           ? normalizedPrecedents
           : fallbackPrecedents;
 
+      const isCooperative =
+        body.cooperationLevel?.toLowerCase().includes("cooperat") ||
+        caseRecord?.cooperationLevel?.toLowerCase().includes("cooperat") ||
+        body.cooperationLevel === "High" ||
+        caseRecord?.cooperationLevel === "High";
+
+      const isFirstTime =
+        body.priorRecord === false ||
+        caseRecord?.priorRecord === false;
+
       const computedRiskScore = calculateRiskScore({
-        offenseType: caseRecord?.offenseType || body.whatHappened || "",
-        previousBail: body.stage || caseRecord?.cooperationLevel || "",
-        custodyDuration: body.when || caseRecord?.timeServedDays?.toString() || "",
+        offenseType: body.offenseType || caseRecord?.offenseType || "",
+        previousBail: body.previousBail || caseRecord?.previousBail || "",
+        custodyDuration:
+          body.custodyDuration ||
+          caseRecord?.custodyStatus ||
+          (caseRecord?.timeServedDays ? `${caseRecord.timeServedDays} days` : "") ||
+          "",
         accusedTags: [
-          caseRecord?.accusedProfile,
-          caseRecord?.cooperationLevel === "High" ? "cooperated" : undefined,
-          caseRecord?.priorRecord === false ? "first-time offender" : undefined,
+          body.accusedProfile || caseRecord?.accusedProfile,
+          isCooperative ? "cooperated in investigation" : undefined,
+          isFirstTime ? "first-time offender" : undefined,
         ].filter((t): t is string => !!t),
       });
 
@@ -642,11 +781,7 @@ Legal Questions: ${questions}
         strengths: normalizedStrengths,
         grounds: rawAnalysisList,
         courtNote: "",
-        riskFactors: normalizedRisks.map((r: any) => ({
-          label: r.text.length > 60 ? `${r.text.slice(0, 57)}...` : r.text,
-          severity: normalizeRiskSeverity(r.level),
-          description: r.text,
-        })),
+        riskFactors: analysisRiskFactors,
         legalReasoning,
         applicableSections,
         precedents,

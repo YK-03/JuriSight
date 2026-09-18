@@ -140,6 +140,11 @@ function findRuleForSection(section: string): SectionRule | null {
   return null;
 }
 
+/** True only when the deterministic engine has an explicit rule for this token. */
+export function hasDeterministicSectionRule(section: string): boolean {
+  return findRuleForSection(section) !== null;
+}
+
 function formatYesNo(value: boolean): string {
   return value ? "yes" : "no";
 }

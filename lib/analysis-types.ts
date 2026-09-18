@@ -116,6 +116,7 @@ export interface CaseAnalysis {
   grounds?: string[];
   courtNote?: string;
   riskFactors: Array<{
+    title?: string;
     label: string;
     severity: Severity;
     description: string;
@@ -148,6 +149,15 @@ export interface AnalyzeRequest {
   legalQuestions?: string;
   caseDescription?: string;
   caseId?: string;
+  sections?: string;
+  offenseType?: string;
+  accusedName?: string;
+  accusedProfile?: string;
+  priorRecord?: boolean;
+  bailType?: string;
+  custodyDuration?: string;
+  previousBail?: string;
+  cooperationLevel?: string;
 }
 
 export interface AnalyzeResponse {

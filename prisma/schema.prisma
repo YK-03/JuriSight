@@ -35,6 +35,10 @@ model Case {
   dateOfArrest         DateTime?
   maximumSentenceYears Int?
   timeServedDays       Int?
+  bailType             String?
+  proceduralStage      String?
+  custodyStatus        String?
+  previousBail         String?
   isPublic             Boolean       @default(true)
   status               CaseStatus    @default(PENDING)
   createdAt            DateTime      @default(now())

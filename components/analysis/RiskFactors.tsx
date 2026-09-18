@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 type RiskFactor = {
+  title?: string;
   label: string;
   severity: "High" | "Medium" | "Low";
   description: string;
@@ -41,7 +42,7 @@ export function RiskFactors({ riskFactors }: RiskFactorsProps) {
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-text-primary">
-                  {factor.label}
+                  {factor.title || factor.label}
                 </span>
                 <Badge variant="outline" className={getSeverityColor(factor.severity)}>
                   {factor.severity}
