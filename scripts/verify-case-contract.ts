@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { buildCasePayload, buildCaseDescription, IntakeFormState } from "../lib/case-intake";
+import { buildCasePayload, buildCaseDescription, INITIAL_FORM_STATE, IntakeFormState } from "../lib/case-intake";
 
 // Schema matching app/api/cases/route.ts
 const CaseCreateSchema = z.object({
@@ -27,6 +27,31 @@ const CaseCreateSchema = z.object({
 console.log("==================================================");
 console.log("Running JuriSight Flow 1 Data Contract Tests");
 console.log("==================================================");
+
+console.log("\n[Test 0] Neutral initial intake state");
+assert.equal(INITIAL_FORM_STATE.offenseType, "", "Offense classification must start unselected");
+assert.equal(INITIAL_FORM_STATE.bailType, "", "Bail type must start unselected");
+assert.equal(INITIAL_FORM_STATE.priorRecord, null, "Prior record must start unselected");
+assert.equal(INITIAL_FORM_STATE.custodyStatus, "", "Custody status must start unselected");
+assert.equal(INITIAL_FORM_STATE.previousBail, "", "Previous bail must start unselected");
+assert.equal(INITIAL_FORM_STATE.cooperationLevel, "", "Cooperation must start unselected");
+
+const untouchedInput: IntakeFormState = {
+  ...INITIAL_FORM_STATE,
+  whatHappened: "A dispute arose regarding a commercial delivery contract and police summoned both parties.",
+};
+assert.throws(
+  () => CaseCreateSchema.parse(buildCasePayload(untouchedInput)),
+  "Untouched intake must be rejected by the case contract",
+);
+assert.throws(
+  () => CaseCreateSchema.parse(buildCasePayload({ ...untouchedInput, offenseType: "Bailable" })),
+  "Null prior record must be rejected by the case contract",
+);
+assert.throws(
+  () => CaseCreateSchema.parse(buildCasePayload({ ...untouchedInput, priorRecord: false })),
+  "Empty offense classification must be rejected by the case contract",
+);
 
 // Test 1: Case A (IPC 420 & 468, Anticipatory Bail, First-time offender, Notice 41A)
 console.log("\n[Test 1] Case A: IPC 420 & 468, Anticipatory Bail, First-time offender");
@@ -104,15 +129,15 @@ assert.equal(validatedB.previousBail, "Previous bail rejected / dismissed", "Pre
 assert.notEqual(validatedB.previousBail, validatedA.previousBail, "Previous bail status must differ between Case A and Case B");
 console.log("✓ Case B assertions passed. Distinct criminal facts cleanly differentiated.");
 
-// Test 3: Minimal Input Fallbacks (User only fills required whatHappened)
-console.log("\n[Test 3] Minimal input fallback behavior (Only whatHappened provided)");
+// Test 3: Minimal Input Fallbacks (Required fields selected; optional fields blank)
+console.log("\n[Test 3] Minimal input fallback behavior (Required fields selected)");
 const minimalInput: IntakeFormState = {
   caseTitle: "",
   sections: "",
-  offenseType: "",
+  offenseType: "Bailable",
   accusedName: "",
   accusedProfile: "",
-  priorRecord: false,
+  priorRecord: true,
   bailType: "",
   proceduralStage: "",
   custodyStatus: "",
@@ -131,9 +156,14 @@ const validatedMinimal = CaseCreateSchema.parse(payloadMinimal);
 
 assert.ok(validatedMinimal.title.length >= 2, "Title must satisfy min length");
 assert.equal(validatedMinimal.accusedName, "Not specified", "Accused name has safe fallback");
+assert.equal(validatedMinimal.accusedProfile, "Not specified", "Empty profile must not invent community ties");
+assert.equal(validatedMinimal.cooperationLevel, "Not specified", "Empty cooperation must not invent cooperation");
 assert.equal(validatedMinimal.section, "Not specified / Under investigation", "Section has safe fallback");
-assert.equal(validatedMinimal.offenseType, "Non-bailable", "OffenseType has safe fallback");
-assert.equal(validatedMinimal.priorRecord, false, "Prior record defaults to false");
+assert.equal(validatedMinimal.offenseType, "Bailable", "Explicit offense classification is preserved");
+assert.equal(validatedMinimal.priorRecord, true, "Explicit prior record selection is preserved");
+assert.equal(validatedMinimal.bailType, undefined, "Blank bail type remains optional");
+assert.equal(validatedMinimal.custodyStatus, undefined, "Blank custody remains optional");
+assert.equal(validatedMinimal.previousBail, undefined, "Blank previous bail remains optional");
 assert.equal(validatedMinimal.jurisdiction, "Jurisdiction not specified", "Jurisdiction has safe fallback");
 console.log("✓ Minimal input assertions passed. All Prisma Case required fields satisfied.");
 
@@ -144,6 +174,10 @@ assert.ok(descriptionA.includes("IPC 420, 468"), "Description includes sections"
 assert.ok(descriptionA.includes("Rajesh Sharma"), "Description includes accused name");
 assert.ok(descriptionA.includes("Anticipatory Bail"), "Description includes bail framework");
 assert.ok(descriptionA.includes("First-time offender"), "Description includes clean record status");
+
+const neutralDescription = buildCaseDescription(untouchedInput);
+assert.ok(!neutralDescription.includes("First-time offender"), "Unselected prior record must not produce first-time language");
+assert.ok(!neutralDescription.includes("Non-bailable"), "Unselected offense must not produce non-bailable language");
 console.log("✓ Case description assertions passed.");
 
 console.log("\n==================================================");

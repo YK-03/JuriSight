@@ -161,6 +161,16 @@ function AnalyzeIntakeContent() {
       return;
     }
 
+    if (!form.offenseType.trim()) {
+      setSubmitError("Please select an offense classification.");
+      return;
+    }
+
+    if (form.priorRecord === null) {
+      setSubmitError("Please select the prior criminal record status.");
+      return;
+    }
+
     setError("");
     setSubmitError("");
     setIsSubmitting(true);
@@ -313,8 +323,9 @@ function AnalyzeIntakeContent() {
                   <select
                     value={form.offenseType}
                     onChange={(event) => updateField("offenseType", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
+                    <option value="">Select offense classification...</option>
                     <option value="Non-bailable">Non-bailable</option>
                     <option value="Bailable">Bailable</option>
                     <option value="Economic Offence">Economic Offence</option>
@@ -379,10 +390,11 @@ function AnalyzeIntakeContent() {
                 <label className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-text-primary">Prior criminal record</span>
                   <select
-                    value={form.priorRecord ? "yes" : "no"}
-                    onChange={(event) => updateField("priorRecord", event.target.value === "yes")}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    value={form.priorRecord === null ? "" : form.priorRecord ? "yes" : "no"}
+                    onChange={(event) => updateField("priorRecord", event.target.value === "" ? null : event.target.value === "yes")}
+                    className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
+                    <option value="">Select prior criminal record...</option>
                     <option value="no">No prior criminal record (First-time offender)</option>
                     <option value="yes">Has prior criminal record / convictions</option>
                   </select>
@@ -423,8 +435,9 @@ function AnalyzeIntakeContent() {
                   <select
                     value={form.bailType}
                     onChange={(event) => updateField("bailType", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
+                    <option value="">Select bail type...</option>
                     <option value="Anticipatory Bail (CrPC 438)">Anticipatory Bail (CrPC 438 / Pre-arrest)</option>
                     <option value="Regular Bail (CrPC 437 / 439)">Regular Bail (CrPC 437 / 439 / In custody)</option>
                     <option value="Default / Statutory Bail (CrPC 167(2))">Default / Statutory Bail (CrPC 167(2))</option>
@@ -448,8 +461,9 @@ function AnalyzeIntakeContent() {
                   <select
                     value={form.custodyStatus}
                     onChange={(event) => updateField("custodyStatus", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
+                    <option value="">Select custody status...</option>
                     <option value="Not arrested / Pre-arrest">Not arrested / Pre-arrest</option>
                     <option value="Under 30 days in custody">Under 30 days in custody</option>
                     <option value="1 to 6 months in custody">1 to 6 months in custody</option>
@@ -462,8 +476,9 @@ function AnalyzeIntakeContent() {
                   <select
                     value={form.previousBail}
                     onChange={(event) => updateField("previousBail", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
+                    <option value="">Select prior bail history...</option>
                     <option value="No prior bail application">No prior bail application (First time)</option>
                     <option value="Previous application rejected / dismissed">Previous application rejected / dismissed</option>
                     <option value="Bail granted and cancelled">Bail granted and cancelled</option>
@@ -475,8 +490,9 @@ function AnalyzeIntakeContent() {
                   <select
                     value={form.cooperationLevel}
                     onChange={(event) => updateField("cooperationLevel", event.target.value)}
-                    className="h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
+                    <option value="">Select cooperation status...</option>
                     <option value="Cooperated in investigation">Cooperated in investigation (Notice complied with / Joined probe)</option>
                     <option value="Fully cooperative">Fully cooperative</option>
                     <option value="Pending / Subpoena issued">Pending / Subpoena issued</option>
