@@ -6,11 +6,11 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
+import type { BailStrategyCourtStage } from "@/lib/section-preservation";
 
 type ViewState = "form" | "loading" | "result";
 type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
 type CustodyDuration = "under-30" | "1-6mo" | "6-12mo" | "1-2yr" | "over-2yr";
-type CourtStage = "sessions" | "magistrate" | "no-chargesheet" | "high-court";
 type PreviousBail = "none" | "1-rejected" | "2plus-rejected" | "granted-cancelled";
 type Eligibility = "Likely eligible" | "Uncertain" | "Unlikely eligible";
 
@@ -23,7 +23,7 @@ interface BailStrategyRequestBody {
   sections: string;
   offenseType: OffenseType | "";
   custodyDuration: CustodyDuration;
-  courtStage: CourtStage;
+  courtStage: BailStrategyCourtStage;
   previousBail: PreviousBail;
   accusedTags: string[];
   age: string;
@@ -49,7 +49,7 @@ const INITIAL_FORM: BailStrategyRequestBody = {
   sections: "",
   offenseType: "",
   custodyDuration: "under-30",
-  courtStage: "magistrate",
+  courtStage: "MAGISTRATE",
   previousBail: "none",
   accusedTags: [],
   age: "",
@@ -74,11 +74,11 @@ const custodyOptions: Array<{ value: CustodyDuration; label: string }> = [
   { value: "over-2yr", label: "Over 2 years" },
 ];
 
-const courtStageOptions: Array<{ value: CourtStage; label: string }> = [
-  { value: "magistrate", label: "Magistrate" },
-  { value: "sessions", label: "Sessions" },
+const courtStageOptions: Array<{ value: BailStrategyCourtStage; label: string }> = [
+  { value: "MAGISTRATE", label: "Magistrate" },
+  { value: "SESSIONS", label: "Sessions" },
   { value: "no-chargesheet", label: "No chargesheet" },
-  { value: "high-court", label: "High Court" },
+  { value: "HIGH_COURT", label: "High Court" },
 ];
 
 const previousBailOptions: Array<{ value: PreviousBail; label: string }> = [
@@ -345,7 +345,7 @@ function BailStrategyPageContent() {
                     <PillGroup
                       options={courtStageOptions}
                       value={form.courtStage}
-                      onChange={(value) => setForm((current) => ({ ...current, courtStage: value as CourtStage }))}
+                      onChange={(value) => setForm((current) => ({ ...current, courtStage: value as BailStrategyCourtStage }))}
                     />
                   </div>
 

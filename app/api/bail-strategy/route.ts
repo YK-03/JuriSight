@@ -3,12 +3,16 @@ import { getSuretyRange } from "@/lib/surety-engine";
 import { NextResponse } from "next/server";
 import { runLegalRules } from "@/lib/legal-rules";
 import { resolveLegalFramework, type LegalFramework } from "@/lib/legal-framework";
+import {
+  isChargesheetFiledForBailStrategyStage,
+  normalizeBailStrategyCourtStage,
+  type BailStrategyCourtStage,
+} from "@/lib/section-preservation";
 
 export const runtime = "nodejs";
 
 type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
 type CustodyDuration = "under-30" | "1-6mo" | "6-12mo" | "1-2yr" | "over-2yr";
-type CourtStage = "sessions" | "magistrate" | "no-chargesheet" | "high-court";
 type PreviousBail = "none" | "1-rejected" | "2plus-rejected" | "granted-cancelled";
 type Eligibility = "Likely eligible" | "Uncertain" | "Unlikely eligible";
 
@@ -17,7 +21,7 @@ interface BailStrategyRequestBody {
   legalFramework?: LegalFramework;
   offenseType: OffenseType;
   custodyDuration: CustodyDuration;
-  courtStage: CourtStage;
+  courtStage: BailStrategyCourtStage;
   previousBail: PreviousBail;
   accusedTags: string[];
   age: string;
@@ -35,7 +39,6 @@ interface BailStrategyResponse {
 
 const OFFENSE_TYPES: OffenseType[] = ["non-bailable", "bailable", "ndps", "uapa", "pmla", "unknown"];
 const CUSTODY_DURATIONS: CustodyDuration[] = ["under-30", "1-6mo", "6-12mo", "1-2yr", "over-2yr"];
-const COURT_STAGES: CourtStage[] = ["sessions", "magistrate", "no-chargesheet", "high-court"];
 const PREVIOUS_BAIL_OPTIONS: PreviousBail[] = ["none", "1-rejected", "2plus-rejected", "granted-cancelled"];
 
 const systemPrompt = `You are a legal reasoning assistant.
@@ -80,7 +83,8 @@ function normalizeBody(input: unknown): BailStrategyRequestBody | null {
     return null;
   }
 
-  if (!isOneOf(candidate.courtStage, COURT_STAGES)) {
+  const courtStage = normalizeBailStrategyCourtStage(candidate.courtStage);
+  if (!courtStage) {
     return null;
   }
 
@@ -106,7 +110,7 @@ function normalizeBody(input: unknown): BailStrategyRequestBody | null {
     }),
     offenseType: candidate.offenseType,
     custodyDuration: candidate.custodyDuration,
-    courtStage: candidate.courtStage,
+    courtStage,
     previousBail: candidate.previousBail,
     accusedTags: candidate.accusedTags,
     age: candidate.age,
@@ -202,16 +206,18 @@ function labelForOffenseType(value: OffenseType): string {
   }
 }
 
-function labelForCourtStage(value: CourtStage): string {
+function labelForCourtStage(value: BailStrategyCourtStage): string {
   switch (value) {
-    case "sessions":
+    case "SESSIONS":
       return "Sessions Court stage";
-    case "magistrate":
+    case "MAGISTRATE":
       return "Magistrate stage";
     case "no-chargesheet":
       return "Charge sheet not filed";
-    case "high-court":
+    case "HIGH_COURT":
       return "High Court stage";
+    case "UNSPECIFIED":
+      return "Court stage unspecified";
   }
 }
 
@@ -302,8 +308,7 @@ export async function POST(request: Request) {
     const custodyDays = parseCustodyDays(body.custodyDuration ?? "");
     const parsedSections = parseSections(body.sections ?? "");
     const parsedAge = parseAge(body.age);
-    const chargesheetFiled = (body.courtStage ?? "").toLowerCase().includes("no-chargesheet") === false
-      && (body.courtStage ?? "").toLowerCase() !== "no-chargesheet";
+    const chargesheetFiled = isChargesheetFiledForBailStrategyStage(body.courtStage);
 
     const legalRules = runLegalRules({
       sections: parsedSections,

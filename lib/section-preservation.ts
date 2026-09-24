@@ -4,6 +4,7 @@ import { inferLegalFrameworkFromSections, type LegalFramework } from "./legal-fr
 export type Statute = LegalStatute;
 export type StatutePrefix = Exclude<Statute, "UNKNOWN">;
 export type BailCourtLevel = "MAGISTRATE" | "SESSIONS" | "HIGH_COURT" | "UNSPECIFIED";
+export type BailStrategyCourtStage = BailCourtLevel | "no-chargesheet";
 export const BAIL_COURT_LEVELS = ["MAGISTRATE", "SESSIONS", "HIGH_COURT", "UNSPECIFIED"] as const satisfies readonly BailCourtLevel[];
 
 export function isBailCourtLevel(value: unknown): value is BailCourtLevel {
@@ -14,6 +15,29 @@ export function resolveBailCourtLevel(explicit: unknown, persisted: unknown): Ba
   if (isBailCourtLevel(explicit)) return explicit;
   if (isBailCourtLevel(persisted)) return persisted;
   return undefined;
+}
+
+export function normalizeBailStrategyCourtStage(value: unknown): BailStrategyCourtStage | null {
+  if (typeof value !== "string") return null;
+  switch (value.trim().toLowerCase()) {
+    case "magistrate":
+      return "MAGISTRATE";
+    case "sessions":
+      return "SESSIONS";
+    case "high-court":
+    case "high_court":
+      return "HIGH_COURT";
+    case "no-chargesheet":
+      return "no-chargesheet";
+    case "unspecified":
+      return "UNSPECIFIED";
+    default:
+      return null;
+  }
+}
+
+export function isChargesheetFiledForBailStrategyStage(stage: BailStrategyCourtStage): boolean {
+  return stage !== "no-chargesheet";
 }
 
 export type ParsedSection = {
