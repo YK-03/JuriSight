@@ -5,6 +5,7 @@
  */
 
 import {
+  buildCaseSpecificGroundingCorpus,
   isNearDuplicateText,
   normalizeRiskFactors,
   normalizeRiskSeverity,
@@ -68,6 +69,39 @@ const VIKRAM_DUPLICATE_TEXT_ONLY = [
 ];
 
 console.log("\nRisk-factor contract");
+
+{
+  const ledger = buildCaseSpecificGroundingCorpus({
+    narrative: "The accused is the managing director of the company and signed the disputed invoices.",
+    structuredValues: ["Vikram Malhotra", "Not specified", "Investigation pending"],
+    suppliedSections: ["IPC 420"],
+    deterministicFindings: ["420 classified as moderate", "generic legal instructions"],
+  });
+  assert("Grounding ledger keeps actual narrative facts", ledger.includes("managing director"));
+  assert("Grounding ledger excludes placeholders", !ledger.includes("Not specified"));
+  assert("Grounding ledger excludes generic procedural defaults", !ledger.includes("Investigation pending"));
+  assert("Grounding ledger excludes unrelated instruction text", !ledger.includes("generic legal instructions"));
+
+  const caseSpecific = normalizeRiskFactors(
+    [{
+      title: "Management role",
+      description: "The accused's management role is relevant because the managing director signed the disputed invoices.",
+      severity: "HIGH",
+    }],
+    { caseFacts: ledger },
+  );
+  assert("Case-specific paraphrase is accepted", caseSpecific.length === 1);
+
+  const generic = normalizeRiskFactors(
+    [{
+      title: "Potential evidence interference",
+      description: "The court may impose strict bail conditions because the investigation involves evidence and an offense.",
+      severity: "MEDIUM",
+    }],
+    { caseFacts: ledger },
+  );
+  assert("Generic legal observation without supporting facts is rejected", generic.length === 0);
+}
 
 {
   const truncatedTitle = "Potential tampering with forged documents or influencing ...";

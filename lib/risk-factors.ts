@@ -13,6 +13,44 @@ export type AnalysisRiskFactor = {
   severity: "High" | "Medium" | "Low";
 };
 
+export type CaseGroundingInput = {
+  narrative?: string;
+  structuredValues?: string[];
+  suppliedSections?: string[];
+  deterministicFindings?: string[];
+};
+
+const NON_FACT_VALUE = /^(?:not specified|unknown|n\/a|none declared|undefined|null|-)$/i;
+const GENERIC_PROCEDURAL_VALUE = /^(?:investigation pending|investigation stage|unknown stage|current stage unknown)$/i;
+const GENERIC_INSTRUCTION_VALUE = /\b(?:instructions?|do not|must not|return only|backend|deterministic findings)\b/i;
+
+function isUsableGroundingValue(value: string): boolean {
+  const normalized = value.trim();
+  return Boolean(normalized) &&
+    !NON_FACT_VALUE.test(normalized) &&
+    !GENERIC_PROCEDURAL_VALUE.test(normalized) &&
+    !GENERIC_INSTRUCTION_VALUE.test(normalized);
+}
+
+/**
+ * Builds a value-only corpus for risk-factor validation. Labels, placeholders,
+ * and generic procedural defaults are deliberately excluded.
+ */
+export function buildCaseSpecificGroundingCorpus(input: CaseGroundingInput): string {
+  const values = [
+    ...(input.structuredValues || []).filter(isUsableGroundingValue),
+    ...(input.suppliedSections || []).filter(isUsableGroundingValue),
+    ...(input.deterministicFindings || []).filter(isUsableGroundingValue),
+  ];
+
+  const narrative = input.narrative?.trim();
+  if (narrative) {
+    values.push(narrative);
+  }
+
+  return values.join("\n");
+}
+
 const STOPWORDS = new Set([
   "the",
   "and",
