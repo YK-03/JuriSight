@@ -4,12 +4,14 @@ export type Precedent = {
   case: string;
   principle: string;
   searchLink: string;
+  appliedTo?: string;
 };
 
 export const PrecedentSchema = z.object({
   case: z.string().trim().min(1, "Missing case"),
   principle: z.string().trim().min(1, "Missing principle"),
   searchLink: z.string().trim().optional().default(""),
+  appliedTo: z.string().trim().optional(),
 });
 
 export const PrecedentsSchema = z.array(PrecedentSchema);
@@ -26,6 +28,17 @@ function coercePrinciple(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function coerceAppliedTo(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function withAppliedTo(entry: Precedent, appliedTo: string): Precedent {
+  if (!appliedTo) {
+    return entry;
+  }
+  return { ...entry, appliedTo };
+}
+
 export function normalizePrecedentEntry(input: unknown): Precedent | null {
   if (!input || typeof input !== "object") {
     return null;
@@ -40,12 +53,16 @@ export function normalizePrecedentEntry(input: unknown): Precedent | null {
   }
 
   const searchLink = coerceCaseName(record.searchLink);
+  const appliedTo = coerceAppliedTo(record.appliedTo);
 
-  return {
-    case: caseName,
-    principle,
-    searchLink: searchLink.includes("indiankanoon") ? searchLink : buildSearchLink(caseName),
-  };
+  return withAppliedTo(
+    {
+      case: caseName,
+      principle,
+      searchLink: searchLink.includes("indiankanoon") ? searchLink : buildSearchLink(caseName),
+    },
+    appliedTo,
+  );
 }
 
 export function normalizePrecedents(input: unknown): Precedent[] {
@@ -56,13 +73,18 @@ export function normalizePrecedents(input: unknown): Precedent[] {
   return input
     .map(normalizePrecedentEntry)
     .filter((entry): entry is Precedent => Boolean(entry))
-    .map((p) => ({
-      case: p.case,
-      principle: p.principle,
-      searchLink: p.searchLink && p.searchLink.includes("indiankanoon")
-        ? p.searchLink
-        : buildSearchLink(p.case),
-    }));
+    .map((p) =>
+      withAppliedTo(
+        {
+          case: p.case,
+          principle: p.principle,
+          searchLink: p.searchLink && p.searchLink.includes("indiankanoon")
+            ? p.searchLink
+            : buildSearchLink(p.case),
+        },
+        p.appliedTo ?? "",
+      ),
+    );
 }
 
 export function buildFallbackPrecedents(input: unknown): Precedent[] {
@@ -84,11 +106,14 @@ export function buildFallbackPrecedents(input: unknown): Precedent[] {
         return null;
       }
 
-      return {
-        case: caseName,
-        principle: principle || "Verify the ratio directly from the linked Indian Kanoon search result.",
-        searchLink: buildSearchLink(caseName),
-      };
+      return withAppliedTo(
+        {
+          case: caseName,
+          principle: principle || "Verify the ratio directly from the linked Indian Kanoon search result.",
+          searchLink: buildSearchLink(caseName),
+        },
+        coerceAppliedTo(record.appliedTo),
+      );
     })
     .filter((entry): entry is Precedent => Boolean(entry));
 }
