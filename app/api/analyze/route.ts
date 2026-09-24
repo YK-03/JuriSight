@@ -17,7 +17,16 @@ import {
   mergeApplicableSections,
   parseSuppliedSections,
 } from "@/lib/section-preservation";
-import { normalizeRiskFactors, toAnalysisRiskFactors } from "@/lib/risk-factors";
+import {
+  buildCaseSpecificGroundingCorpus,
+  normalizeRiskFactors,
+  toAnalysisRiskFactors,
+} from "@/lib/risk-factors";
+import { resolveLegalReasoning } from "@/lib/analysis-source-of-truth";
+import {
+  parseCustodyDaysForRules,
+} from "@/lib/case-intake";
+import { resolveLegalFramework } from "@/lib/legal-framework";
 
 export const runtime = "nodejs";
 
@@ -56,22 +65,6 @@ function normalizeCase(input: string) {
     custody: detectCustody(input),
     facts: extractKeyFacts(input),
   };
-}
-
-/** Convert free-text custody duration to an integer number of days. */
-function parseCustodyDaysForRules(custodyDuration: string): number {
-  const val = custodyDuration.toLowerCase();
-  if (val.includes("under") || val.includes("30")) return 25;
-  if (val.includes("1 to 6") || val.includes("1-6")) return 90;
-  if (val.includes("6 to 12") || val.includes("6-12")) return 180;
-  if (val.includes("1 to 2") || val.includes("1-2")) return 365;
-  if (val.includes("over 2") || val.includes("2+")) return 730;
-  // Extract bare number of days/months if present
-  const dayMatch = val.match(/(\d+)\s*day/);
-  if (dayMatch) return parseInt(dayMatch[1], 10);
-  const monthMatch = val.match(/(\d+)\s*month/);
-  if (monthMatch) return parseInt(monthMatch[1], 10) * 30;
-  return 30; // safe default
 }
 
 /** Determine whether a chargesheet has been filed from the procedural stage string. */
@@ -438,6 +431,19 @@ export async function POST(req: Request) {
       }
     }
 
+    if (!requestedCaseId) {
+      const hasOffenseClassification =
+        typeof body.offenseType === "string" && body.offenseType.trim().length > 0;
+      const hasPriorRecord = typeof body.priorRecord === "boolean";
+
+      if (!hasOffenseClassification || !hasPriorRecord) {
+        return NextResponse.json(
+          { error: "offenseType and priorRecord are required for direct analysis." },
+          { status: 400 },
+        );
+      }
+    }
+
     const caseTitle = body.caseTitle || caseRecord?.title || "Not specified";
     const stage = body.proceduralStage || body.stage || caseRecord?.proceduralStage || caseRecord?.cooperationLevel || "Unknown";
     const when = body.incidentDate || body.when || caseRecord?.timeServedDays?.toString() || "Not specified";
@@ -468,6 +474,11 @@ export async function POST(req: Request) {
     // Priority: explicit body field > DB record field > normalizeCase inference.
     // -------------------------------------------------------------------------
     const resolvedSections = body.sections || caseRecord?.section || normalized.sections || "";
+    const resolvedLegalFramework = resolveLegalFramework({
+      explicit: body.legalFramework,
+      persisted: caseRecord?.legalFramework,
+      suppliedSections: resolvedSections,
+    });
     const resolvedCustodyStr =
       body.custodyDuration ||
       caseRecord?.custodyStatus ||
@@ -486,9 +497,9 @@ export async function POST(req: Request) {
       forRules: parsedSections,
       suppliedRaw: suppliedSectionLabels,
       parsed: parsedSectionRecords,
-    } = parseSuppliedSections(resolvedSections);
+    } = parseSuppliedSections(resolvedSections, resolvedLegalFramework);
 
-    const custodyDays = parseCustodyDaysForRules(resolvedCustodyStr);
+    const parsedCustodyDays = parseCustodyDaysForRules(resolvedCustodyStr);
     const chargesheetFiled = isChargesheetFiled(resolvedProceduralStage);
 
     // -------------------------------------------------------------------------
@@ -496,9 +507,10 @@ export async function POST(req: Request) {
     // -------------------------------------------------------------------------
     const legalRuleInput: LegalRuleInput = {
       sections: parsedSections,
-      custodyDays,
+      custodyDays: parsedCustodyDays,
       chargesheetFiled,
       age: 25, // age not yet captured in intake; default to adult
+      framework: resolvedLegalFramework,
     };
     const legalRules = runLegalRules(legalRuleInput);
 
@@ -508,7 +520,10 @@ export async function POST(req: Request) {
     // -------------------------------------------------------------------------
     const resolvedBailType = body.bailType || caseRecord?.bailType || "Not specified";
     const resolvedAccusedName = body.accusedName || caseRecord?.accusedName || people;
-    const resolvedAccusedProfile = body.accusedProfile || caseRecord?.accusedProfile || "Not specified";
+    const resolvedAccusedProfile =
+      typeof body.accusedProfile === "string"
+        ? body.accusedProfile.trim() || "Not specified"
+        : caseRecord?.accusedProfile?.trim() || "Not specified";
     const resolvedPriorRecord =
       body.priorRecord === false || caseRecord?.priorRecord === false
         ? "No prior record"
@@ -524,6 +539,7 @@ export async function POST(req: Request) {
       `Accused Name: ${resolvedAccusedName}`,
       `Accused Profile: ${resolvedAccusedProfile}`,
       `Sections Charged: ${resolvedSections || "Not specified"}`,
+      `Legal Framework: ${resolvedLegalFramework}`,
       `Offense Type: ${resolvedOffenseType}`,
       `Bail Type Sought: ${resolvedBailType}`,
       `Procedural Stage: ${resolvedProceduralStage}`,
@@ -562,7 +578,7 @@ OUTPUT FORMAT (MANDATORY)
   "strengths": [
     { "text": "case-specific strength", "impact": "LOW | MEDIUM | HIGH" }
   ],
-  "legalReasoning": "detailed paragraph explaining the eligibility assessment",
+  "legalReasoning": "detailed paragraph explaining how the supplied case facts and deterministic legal findings support the qualitative assessment",
   "applicableSections": ["IPC Section 468"],
   "precedents": [
     {
@@ -615,8 +631,8 @@ ${legalRules.promptInjection}
 
 ${formatAuthoritativeSectionsBlock(suppliedSectionLabels)}
 
-- Do NOT add CrPC bail sections (438, 437, 439) to applicableSections.
-  The backend adds the correct procedural provisions based on the declared bail type.
+- Do NOT add procedural bail provisions (such as CrPC 438 or BNSS 482) to applicableSections.
+  The backend adds the framework-appropriate procedural provisions based on the declared bail type.
 - Do NOT replace or shrink the authoritative supplied section list.
   The backend always preserves those sections even if you omit them.
 - In applicableSections, you may list additional possible/unverified statutory issues only.
@@ -654,7 +670,7 @@ QUALITY RULES
 
 - No generic statements
 - Risk factor titles and descriptions must be complementary, not duplicates
-- legalReasoning must explain WHY the score exists
+- legalReasoning must explain how the supplied case facts and deterministic legal findings support the qualitative assessment
 - Never leave any field empty
 - Return ONLY valid JSON — no markdown, no explanation
 
@@ -683,11 +699,34 @@ ${structuredCaseFacts}
           : parsed.risks && typeof parsed.risks === "object"
           ? Object.values(parsed.risks)
           : [];
-      const caseFactsForRisks = [
-        structuredCaseFacts,
-        legalRules.promptInjection,
-        resolvedSections,
-      ].join("\n");
+      const caseFactsForRisks = buildCaseSpecificGroundingCorpus({
+        narrative: whatHappened,
+        structuredValues: [
+          resolvedAccusedName,
+          resolvedAccusedProfile,
+          resolvedSections,
+          resolvedOffenseType,
+          resolvedBailType,
+          resolvedProceduralStage,
+          resolvedCustodyStr,
+          resolvedPriorRecord,
+          resolvedPreviousBail,
+          resolvedCooperation,
+          when,
+          where,
+          evidence,
+          questions,
+        ],
+        suppliedSections: suppliedSectionLabels,
+        deterministicFindings: [
+          legalRules.offenseClass.primarySection
+            ? `${legalRules.offenseClass.primarySection} classified as ${legalRules.offenseClass.severity}`
+            : "",
+          legalRules.defaultBail.daysServed !== null
+            ? `${legalRules.defaultBail.daysServed} days custody recorded against ${legalRules.defaultBail.daysRequired}-day default-bail threshold`
+            : "",
+        ],
+      });
       const normalizedRiskContracts = normalizeRiskFactors(rawRisks, {
         caseFacts: caseFactsForRisks,
       });
@@ -714,9 +753,10 @@ ${structuredCaseFacts}
         : [];
 
       const applicableSections = mergeApplicableSections({
-        parsed: parsedSectionRecords,
-        bailType: resolvedBailType,
-        llmSections: rawSections,
+      parsed: parsedSectionRecords,
+      bailType: resolvedBailType,
+      framework: resolvedLegalFramework,
+      llmSections: rawSections,
       });
 
 
@@ -757,7 +797,7 @@ ${structuredCaseFacts}
         ].filter((t): t is string => !!t),
       });
 
-      const legalReasoning = typeof parsed.legalReasoning === "string" ? parsed.legalReasoning.trim() : "";
+      const legalReasoning = resolveLegalReasoning(parsed.legalReasoning, legalRules, computedRiskScore);
       const analysisSummary = typeof parsed.analysisSummary === "string" && parsed.analysisSummary.trim()
         ? parsed.analysisSummary.trim()
         : legalReasoning.slice(0, 200) || "Eligibility analysis evaluated.";

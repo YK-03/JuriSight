@@ -1,12 +1,14 @@
+import { defaultBailProvisionForFramework, type LegalFramework } from "./legal-framework";
+
 export type Severity = "minor" | "moderate" | "serious" | "severe";
 export type QuantityCategory = "small" | "commercial" | "unknown";
 export type JuvenileRoute = "JJB" | "SessionsCourt" | "Magistrate";
 
 export interface DefaultBailResult {
-  eligible: boolean;
+  eligible: boolean | null;
   daysRequired: number;
-  daysServed: number;
-  daysRemaining: number;
+  daysServed: number | null;
+  daysRemaining: number | null;
   note: string;
 }
 
@@ -40,14 +42,17 @@ export interface JuvenileResult {
 
 export interface LegalRuleInput {
   sections: string[];
-  custodyDays: number;
+  custodyDays: number | null;
   chargesheetFiled: boolean;
   age: number;
+  framework?: LegalFramework;
   ndpsQuantity?: QuantityCategory;
   pmlaAmount?: number;
 }
 
 export interface LegalRuleOutput {
+  framework: LegalFramework;
+  defaultBailProvision: string | null;
   defaultBail: DefaultBailResult;
   offenseClass: OffenseClassification;
   ndpsBar: NDPSBarResult | null;
@@ -155,9 +160,31 @@ function formatYesNo(value: boolean): string {
  */
 export function checkDefaultBail(
   sections: string[],
-  custodyDays: number,
+  custodyDays: number | null,
   chargesheetFiled: boolean,
 ): DefaultBailResult {
+  if (custodyDays === null) {
+    if (chargesheetFiled) {
+      return {
+        eligible: false,
+        daysRequired: 0,
+        daysServed: null,
+        daysRemaining: null,
+        note: "Chargesheet already filed",
+      };
+    }
+
+    const hasSeriousSection = includesAnySection(sections, SERIOUS_DEFAULT_BAIL_SECTIONS);
+    const daysRequired = hasSeriousSection ? 90 : 60;
+    return {
+      eligible: null,
+      daysRequired,
+      daysServed: null,
+      daysRemaining: null,
+      note: "Custody duration unspecified; default bail eligibility not computed",
+    };
+  }
+
   const daysServed = Math.max(0, Math.floor(custodyDays));
 
   if (chargesheetFiled) {
@@ -316,6 +343,8 @@ export function checkJuvenileFlag(age: number): JuvenileResult {
 }
 
 function buildPromptInjection(output: {
+  framework: LegalFramework;
+  defaultBailProvision: string | null;
   defaultBail: DefaultBailResult;
   offenseClass: OffenseClassification;
   ndpsBar: NDPSBarResult | null;
@@ -325,14 +354,27 @@ function buildPromptInjection(output: {
   const lines: string[] = [
     "DETERMINISTIC LEGAL FINDINGS (BACKEND COMPUTED — YOU MUST NOT CONTRADICT THESE):",
     "",
+    `Legal Framework: [${output.framework}]`,
     `Offense Classification: [${output.offenseClass.bailable ? "bailable" : "non-bailable"}], Severity: [${output.offenseClass.severity}]`,
     `Primary Section: [${output.offenseClass.primarySection}]`,
     "",
-    "Default Bail (CrPC 167(2)):",
-    `- Eligible: [${formatYesNo(output.defaultBail.eligible)}]`,
-    `- Days served: [${output.defaultBail.daysServed}] / [${output.defaultBail.daysRequired}] required`,
-    `- ${output.defaultBail.note}`,
+    `Default Bail (${output.defaultBailProvision || "framework unresolved"}):`,
   ];
+
+  if (output.defaultBail.daysServed === null) {
+    const chargesheetBarsDefaultBail = output.defaultBail.note === "Chargesheet already filed";
+    lines.push(
+      `- Eligible: [${chargesheetBarsDefaultBail ? "no" : "not computed"}]`,
+      "- Days served: [unspecified — not assumed]",
+      `- ${output.defaultBail.note}`,
+    );
+  } else {
+    lines.push(
+      `- Eligible: [${formatYesNo(output.defaultBail.eligible === true)}]`,
+      `- Days served: [${output.defaultBail.daysServed}] / [${output.defaultBail.daysRequired}] required`,
+      `- ${output.defaultBail.note}`,
+    );
+  }
 
   if (output.ndpsBar) {
     lines.push(
@@ -380,13 +422,19 @@ function buildPromptInjection(output: {
  * results and the prompt injection string for downstream AI consumers.
  */
 export function runLegalRules(input: LegalRuleInput): LegalRuleOutput {
-  const defaultBail = checkDefaultBail(input.sections, input.custodyDays, input.chargesheetFiled);
-  const offenseClass = classifyOffense(input.sections);
+  const framework = input.framework ?? "LEGACY_IPC_CRPC";
+  const ruleSections = framework === "LEGACY_IPC_CRPC" || framework === "MIXED_LEGACY"
+    ? input.sections
+    : [];
+  const defaultBail = checkDefaultBail(ruleSections, input.custodyDays, input.chargesheetFiled);
+  const offenseClass = classifyOffense(ruleSections);
   const juvenile = checkJuvenileFlag(input.age);
-  const ndpsBar = offenseClass.hasNDPS ? checkNDPSBar(input.sections, input.ndpsQuantity ?? "unknown") : null;
-  const pmlaConditions = offenseClass.hasPMLA ? checkPMLAConditions(input.sections, input.pmlaAmount) : null;
+  const ndpsBar = offenseClass.hasNDPS ? checkNDPSBar(ruleSections, input.ndpsQuantity ?? "unknown") : null;
+  const pmlaConditions = offenseClass.hasPMLA ? checkPMLAConditions(ruleSections, input.pmlaAmount) : null;
 
   const output: LegalRuleOutput = {
+    framework,
+    defaultBailProvision: defaultBailProvisionForFramework(framework),
     defaultBail,
     offenseClass,
     ndpsBar,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrCreateUser } from "@/lib/user-sync";
 import { z } from "zod";
 import  db  from "@/lib/db";
+import { LEGAL_FRAMEWORKS } from "@/lib/legal-framework";
 
 const CasePatchSchema = z.object({
   title: z.string().min(2).optional(),
@@ -13,7 +14,7 @@ const CasePatchSchema = z.object({
   offenseDescription: z.string().min(10).optional(),
   cooperationLevel: z.string().min(1).optional(),
   jurisdiction: z.string().min(1).optional(),
-  legalFramework: z.string().optional(),
+  legalFramework: z.enum(LEGAL_FRAMEWORKS).optional(),
   specialAct: z.string().optional(),
   bailType: z.string().optional(),
   proceduralStage: z.string().optional(),

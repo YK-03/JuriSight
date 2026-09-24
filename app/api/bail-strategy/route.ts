@@ -2,6 +2,7 @@ import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
 import { getSuretyRange } from "@/lib/surety-engine";
 import { NextResponse } from "next/server";
 import { runLegalRules } from "@/lib/legal-rules";
+import { resolveLegalFramework, type LegalFramework } from "@/lib/legal-framework";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ type Eligibility = "Likely eligible" | "Uncertain" | "Unlikely eligible";
 
 interface BailStrategyRequestBody {
   sections: string;
+  legalFramework?: LegalFramework;
   offenseType: OffenseType;
   custodyDuration: CustodyDuration;
   courtStage: CourtStage;
@@ -98,6 +100,10 @@ function normalizeBody(input: unknown): BailStrategyRequestBody | null {
 
   return {
     sections: candidate.sections,
+    legalFramework: resolveLegalFramework({
+      explicit: candidate.legalFramework,
+      suppliedSections: candidate.sections,
+    }),
     offenseType: candidate.offenseType,
     custodyDuration: candidate.custodyDuration,
     courtStage: candidate.courtStage,
@@ -233,6 +239,7 @@ function buildPrompt(body: BailStrategyRequestBody, promptInjection: string): st
 
   const sections = clean(body.sections);
   if (sections) lines.push(`Sections: ${sections}`);
+  if (body.legalFramework) lines.push(`Legal framework: ${body.legalFramework}`);
 
   const offense = labelForOffenseType(body.offenseType);
   if (offense) lines.push(`Offense type: ${offense}`);
@@ -303,6 +310,7 @@ export async function POST(request: Request) {
       custodyDays,
       chargesheetFiled,
       age: parsedAge,
+      framework: body.legalFramework,
       ndpsQuantity: body.ndpsQuantity,
       pmlaAmount: body.pmlaAmount,
     });

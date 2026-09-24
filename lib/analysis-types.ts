@@ -158,6 +158,7 @@ export interface AnalyzeRequest {
   custodyDuration?: string;
   previousBail?: string;
   cooperationLevel?: string;
+  legalFramework?: import("@/lib/legal-framework").LegalFramework;
 }
 
 export interface AnalyzeResponse {

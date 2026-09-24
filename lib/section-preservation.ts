@@ -1,94 +1,95 @@
 import { hasDeterministicSectionRule } from "./legal-rules";
+import { inferLegalFrameworkFromSections, type LegalFramework } from "./legal-framework";
 
-export type StatutePrefix = "IPC" | "BNS" | "CRPC";
+export type Statute = "IPC" | "BNS" | "CRPC" | "BNSS" | "UNKNOWN";
+export type StatutePrefix = Exclude<Statute, "UNKNOWN">;
 
 export type ParsedSection = {
-  statute: StatutePrefix;
+  statute: Statute;
   code: string;
   display: string;
+  resolution: "explicit" | "framework-inferred" | "ambiguous";
+  frameworkConflict: boolean;
 };
 
 export type ApplicableSectionEntry = {
   code: string;
   title: string;
   relevance: string;
-  source: "supplied" | "procedural" | "deterministic" | "inferred";
+  source: "supplied" | "procedural" | "deterministic" | "inferred" | "unresolved";
 };
 
 const CODE_RE = /^(\d+[A-Za-z]*)$/;
 const CODE_IN_TEXT_RE = /(\d+[A-Za-z]*)/;
 const PROCEDURAL_CRPC = new Set(["437", "438", "439", "167", "167A", "41A"]);
 
-export function parseSuppliedSections(raw: string): {
-  forRules: string[];
-  suppliedRaw: string[];
-  parsed: ParsedSection[];
-} {
+export function parseSuppliedSections(
+  raw: string,
+  framework?: LegalFramework,
+): { forRules: string[]; suppliedRaw: string[]; parsed: ParsedSection[] } {
   if (!raw || !raw.trim() || /^not specified/i.test(raw.trim())) {
     return { forRules: [], suppliedRaw: [], parsed: [] };
   }
 
-  const cleaned = raw
-    .replace(/\([^)]*\)/g, " ")
-    .replace(/\band\b/gi, ",")
-    .replace(/\bu\/s\b/gi, " ");
-
-  const delimitedTokens = cleaned.split(/[,;\/\n]+/);
-  let currentPrefix: StatutePrefix = "IPC";
+  const effectiveFramework = framework ?? inferLegalFrameworkFromSections(raw);
+  const cleaned = raw.replace(/\([^)]*\)/g, " ").replace(/\band\b/gi, ",").replace(/\bu\/s\b/gi, " ");
   const parsed: ParsedSection[] = [];
   const seen = new Set<string>();
+  let currentPrefix: Statute = "UNKNOWN";
+  let hasExplicitPrefix = false;
 
-  for (const rawToken of delimitedTokens) {
+  for (const rawToken of cleaned.split(/[,;\/\n]+/)) {
     const token = rawToken.trim();
     if (!token) continue;
 
-    const prefixMatch = token.match(/^(IPC|BNS|CRPC|CrPC)\s+(?:Sections?\s+)?(.*)$/i);
+    const prefixMatch = token.match(/^(IPC|BNS|CRPC|CrPC|BNSS)\s+(?:Sections?\s+)?(.*)$/i);
     let remainder = token;
+    let statute: Statute = "UNKNOWN";
+    let resolution: ParsedSection["resolution"] = "explicit";
 
     if (prefixMatch) {
       const marker = prefixMatch[1].toUpperCase();
-      currentPrefix = marker === "CRPC" ? "CRPC" : (marker as StatutePrefix);
+      statute = marker === "CRPC" ? "CRPC" : (marker as StatutePrefix);
       remainder = (prefixMatch[2] || "").trim();
+      currentPrefix = statute;
+      hasExplicitPrefix = true;
     } else {
       remainder = token.replace(/^sections?\s+/i, "").trim();
+      if (hasExplicitPrefix) {
+        statute = currentPrefix;
+        resolution = "explicit";
+      } else {
+        resolution = effectiveFramework === "LEGACY_IPC_CRPC" ? "framework-inferred" : "ambiguous";
+        statute = effectiveFramework === "LEGACY_IPC_CRPC" ? "IPC" : "UNKNOWN";
+        currentPrefix = statute;
+      }
     }
 
     const codeMatch = remainder.match(CODE_IN_TEXT_RE);
     if (!codeMatch) continue;
-
     const code = codeMatch[1].toUpperCase();
     if (!CODE_RE.test(code)) continue;
 
-    const key = `${currentPrefix}:${code}`;
+    const key = `${statute}:${code}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const display =
-      currentPrefix === "CRPC" ? `CrPC ${code}` : `${currentPrefix} ${code}`;
+    const display = statute === "UNKNOWN" ? `Unspecified ${code}` : statute === "CRPC" ? `CrPC ${code}` : `${statute} ${code}`;
+    const frameworkConflict =
+      (effectiveFramework === "LEGACY_IPC_CRPC" && (statute === "BNS" || statute === "BNSS")) ||
+      (effectiveFramework === "CURRENT_BNS_BNSS" && (statute === "IPC" || statute === "CRPC"));
 
-    parsed.push({
-      statute: currentPrefix,
-      code,
-      display,
-    });
+    parsed.push({ statute, code, display, resolution, frameworkConflict });
   }
 
   const forRules = parsed
-    .filter((section) => section.statute === "IPC")
+    .filter((section) => section.statute === "IPC" && section.resolution !== "ambiguous" && !section.frameworkConflict)
     .map((section) => section.code);
-
-  return {
-    forRules,
-    suppliedRaw: parsed.map((section) => section.display),
-    parsed,
-  };
+  return { forRules, suppliedRaw: parsed.map((section) => section.display), parsed };
 }
 
 export function formatAuthoritativeSectionsBlock(suppliedRaw: string[]): string {
-  if (suppliedRaw.length === 0) {
-    return "AUTHORITATIVE SUPPLIED SECTIONS: none declared by the user.";
-  }
-
+  if (suppliedRaw.length === 0) return "AUTHORITATIVE SUPPLIED SECTIONS: none declared by the user.";
   return [
     "AUTHORITATIVE SUPPLIED SECTIONS (DO NOT DROP, REPLACE, OR SHRINK THIS LIST):",
     suppliedRaw.join(", "),
@@ -97,13 +98,13 @@ export function formatAuthoritativeSectionsBlock(suppliedRaw: string[]): string 
   ].join("\n");
 }
 
-function normalizeComparable(value: string): { statute: StatutePrefix | "UNKNOWN"; code: string } {
+function normalizeComparable(value: string): { statute: Statute; code: string } {
   const upper = value.toUpperCase().replace(/\([^)]*\)/g, " ");
-  let statute: StatutePrefix | "UNKNOWN" = "UNKNOWN";
-  if (/\bBNS\b/.test(upper)) statute = "BNS";
+  let statute: Statute = "UNKNOWN";
+  if (/\bBNSS\b/.test(upper)) statute = "BNSS";
+  else if (/\bBNS\b/.test(upper)) statute = "BNS";
   else if (/\bCRPC\b/.test(upper) || /\bCR\.?\s*P\.?\s*C\.?\b/.test(upper)) statute = "CRPC";
   else if (/\bIPC\b/.test(upper)) statute = "IPC";
-
   const codeMatch = upper.match(CODE_IN_TEXT_RE);
   return { statute, code: codeMatch ? codeMatch[1] : "" };
 }
@@ -112,25 +113,32 @@ function isProceduralProvision(value: string): boolean {
   const { statute, code } = normalizeComparable(value);
   if (!code) return false;
   if (statute === "IPC" || statute === "BNS") return false;
-  return PROCEDURAL_CRPC.has(code) || statute === "CRPC";
+  return PROCEDURAL_CRPC.has(code) || statute === "CRPC" || statute === "BNSS";
 }
 
-export function proceduralProvisionsForBailType(
-  bailType: string,
-): ApplicableSectionEntry[] {
-  const isAnticipatory =
-    bailType.toLowerCase().includes("anticipatory") || bailType.toLowerCase().includes("438");
+function unresolvedProceduralEntry(framework: LegalFramework, bailType: string): ApplicableSectionEntry {
+  return {
+    code: "Unresolved procedural provision",
+    title: "Procedural provision unresolved",
+    relevance: `Framework is ${framework}; ${bailType.toLowerCase().includes("anticipatory") ? "anticipatory" : "regular"}-bail provision was not selected automatically`,
+    source: "unresolved",
+  };
+}
+
+export function proceduralProvisionsForBailType(bailType: string, framework: LegalFramework = "LEGACY_IPC_CRPC"): ApplicableSectionEntry[] {
+  const isAnticipatory = bailType.toLowerCase().includes("anticipatory") || bailType.toLowerCase().includes("438") || bailType.toLowerCase().includes("482");
+  if (framework === "UNSPECIFIED" || framework === "MIXED_LEGACY") return [unresolvedProceduralEntry(framework, bailType)];
 
   if (isAnticipatory) {
-    return [
-      {
-        code: "CrPC 438",
-        title: "Anticipatory bail",
-        relevance: "Procedural provision — derived from the declared bail type, not an offence section",
-        source: "procedural",
-      },
-    ];
+    return [{
+      code: framework === "CURRENT_BNS_BNSS" ? "BNSS 482" : "CrPC 438",
+      title: "Anticipatory bail",
+      relevance: "Procedural provision — derived from the declared bail type, not an offence section",
+      source: "procedural",
+    }];
   }
+
+  if (framework === "CURRENT_BNS_BNSS") return [unresolvedProceduralEntry(framework, bailType)];
 
   return [
     {
@@ -149,71 +157,41 @@ export function proceduralProvisionsForBailType(
 }
 
 function suppliedRelevance(section: ParsedSection): string {
-  if (section.statute === "BNS") {
-    return "User-supplied BNS section (declared; not validated by the deterministic IPC/special-act rule engine)";
-  }
-  if (section.statute === "CRPC") {
-    return "User-supplied procedural provision";
-  }
-  if (hasDeterministicSectionRule(section.code)) {
-    return "User-supplied statutory section; recognized by deterministic legal rules";
-  }
+  if (section.frameworkConflict) return `User-supplied ${section.display} conflicts with the selected framework; declaration preserved and not rewritten`;
+  if (section.statute === "UNKNOWN") return "User-supplied section with unspecified statute; not validated by deterministic legal rules";
+  if (section.statute === "BNS" || section.statute === "BNSS") return `User-supplied ${section.statute} section (declared; not validated by the deterministic IPC/special-act rule engine)`;
+  if (section.statute === "CRPC") return "User-supplied procedural provision";
+  if (hasDeterministicSectionRule(section.code)) return "User-supplied statutory section; recognized by deterministic legal rules";
   return "User-supplied statutory section; no matching deterministic rule (preserved as declared)";
 }
 
 export function mergeApplicableSections(options: {
   parsed: ParsedSection[];
   bailType: string;
+  framework?: LegalFramework;
   llmSections: unknown[];
 }): ApplicableSectionEntry[] {
+  const framework = options.framework ?? "LEGACY_IPC_CRPC";
   const suppliedKeys = new Set(options.parsed.map((section) => `${section.statute}:${section.code}`));
-
-  const suppliedEntries: ApplicableSectionEntry[] = options.parsed.map((section) => ({
-    code: section.display,
-    title: section.display,
-    relevance: suppliedRelevance(section),
-    source: "supplied",
-  }));
-
-  const procedural = proceduralProvisionsForBailType(options.bailType).filter((entry) => {
+  const suppliedEntries = options.parsed.map((section) => ({ code: section.display, title: section.display, relevance: suppliedRelevance(section), source: "supplied" as const }));
+  const procedural = proceduralProvisionsForBailType(options.bailType, framework).filter((entry) => {
     const comparable = normalizeComparable(entry.code);
     return !suppliedKeys.has(`${comparable.statute}:${comparable.code}`);
   });
 
   const inferred: ApplicableSectionEntry[] = [];
   const inferredKeys = new Set<string>();
-
   for (const raw of options.llmSections) {
-    const code =
-      typeof raw === "string"
-        ? raw.trim()
-        : String((raw as { code?: string; title?: string })?.code || (raw as { title?: string })?.title || "").trim();
-    const title =
-      typeof raw === "string"
-        ? raw.trim()
-        : String((raw as { title?: string; code?: string })?.title || (raw as { code?: string })?.code || "").trim();
-    const relevance =
-      typeof raw === "string"
-        ? ""
-        : String((raw as { relevance?: string; description?: string })?.relevance || (raw as { description?: string })?.description || "").trim();
-
+    const code = typeof raw === "string" ? raw.trim() : String((raw as { code?: string; title?: string })?.code || (raw as { title?: string })?.title || "").trim();
+    const title = typeof raw === "string" ? raw.trim() : String((raw as { title?: string; code?: string })?.title || (raw as { code?: string })?.code || "").trim();
+    const relevance = typeof raw === "string" ? "" : String((raw as { relevance?: string; description?: string })?.relevance || (raw as { description?: string })?.description || "").trim();
     if (!code && !title) continue;
-
     const comparable = normalizeComparable(code || title);
-    if (!comparable.code) continue;
-    if (isProceduralProvision(code || title)) continue;
-
-    const statute = comparable.statute === "UNKNOWN" ? "IPC" : comparable.statute;
-    const key = `${statute}:${comparable.code}`;
+    if (!comparable.code || comparable.statute === "UNKNOWN" || isProceduralProvision(code || title)) continue;
+    const key = `${comparable.statute}:${comparable.code}`;
     if (suppliedKeys.has(key) || inferredKeys.has(key)) continue;
     inferredKeys.add(key);
-
-    inferred.push({
-      code: statute === "CRPC" ? `CrPC ${comparable.code}` : `${statute} ${comparable.code}`,
-      title: title || code,
-      relevance: relevance || "Possible/unverified issue (AI-inferred; not user-supplied)",
-      source: "inferred",
-    });
+    inferred.push({ code: comparable.statute === "CRPC" ? `CrPC ${comparable.code}` : `${comparable.statute} ${comparable.code}`, title: title || code, relevance: relevance || "Possible/unverified issue (AI-inferred; not user-supplied)", source: "inferred" });
   }
 
   return [...suppliedEntries, ...procedural, ...inferred];
