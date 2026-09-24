@@ -47,7 +47,7 @@ export function mapPrismaAnalysis(a: Analysis): AnalysisView {
   const lb = a.legalBasis as unknown as LegalBasis;
 
   const legalBasisText = [
-    `Classification: ${lb.classification === "NON_BAILABLE" ? "Non-Bailable Offense" : "Bailable Offense"}.`,
+    `Classification: ${lb.classification === "NON_BAILABLE" ? "Non-Bailable Offense" : lb.classification === "BAILABLE" ? "Bailable Offense" : "Unresolved / Unsupported Offense Classification"}.`,
     `Primary Section: ${lb.primarySection || a.applicableSections[0] || "N/A"}.`,
     lb.applicableSections.length > 0 ? `Applicable Laws: ${lb.applicableSections.join(", ")}.` : "",
   ]
@@ -159,6 +159,7 @@ export interface AnalyzeRequest {
   previousBail?: string;
   cooperationLevel?: string;
   legalFramework?: import("@/lib/legal-framework").LegalFramework;
+  bailCourtLevel?: import("@/lib/section-preservation").BailCourtLevel;
 }
 
 export interface AnalyzeResponse {

@@ -4,6 +4,7 @@ export type Severity = "minor" | "moderate" | "serious" | "severe";
 export type QuantityCategory = "small" | "commercial" | "unknown";
 export type JuvenileRoute = "JJB" | "SessionsCourt" | "Magistrate";
 export type LegalStatute = "IPC" | "BNS" | "CRPC" | "BNSS" | "NDPS" | "PMLA" | "UNKNOWN";
+export type DefaultBailThreshold = 60 | 90 | null;
 
 export type LegalRuleIdentity = {
   statute: LegalStatute;
@@ -20,9 +21,9 @@ export interface DefaultBailResult {
 }
 
 export interface OffenseClassification {
-  bailable: boolean;
+  bailable: boolean | null;
   supported: boolean;
-  severity: Severity;
+  severity: Severity | null;
   primarySection: string;
   hasNDPS: boolean;
   hasPMLA: boolean;
@@ -62,6 +63,9 @@ export interface LegalRuleOutput {
   framework: LegalFramework;
   defaultBailProvision: string | null;
   defaultBail: DefaultBailResult;
+  defaultBailThreshold: DefaultBailThreshold;
+  recognizedRuleIdentities: LegalRuleIdentity[];
+  unresolvedRuleIdentities: LegalRuleIdentity[];
   offenseClass: OffenseClassification;
   ndpsBar: NDPSBarResult | null;
   pmlaConditions: PMLAResult | null;
@@ -72,39 +76,44 @@ export interface LegalRuleOutput {
 interface SectionRule {
   bailable: boolean;
   severity: Severity;
+  defaultBailThreshold: Exclude<DefaultBailThreshold, null>;
 }
 
-const SERIOUS_DEFAULT_BAIL_RULES = [
-  "IPC:302", "IPC:307", "IPC:376", "IPC:376A", "IPC:376D", "IPC:396", "IPC:364A", "IPC:121", "IPC:132",
-  "NDPS:21", "NDPS:22",
-] as const;
-const CURRENT_BNS_SERIOUS_DEFAULT_BAIL_RULES = ["BNS:103", "BNS:109", "BNS:64"] as const;
 const NDPS_TRIGGER_SECTIONS = ["8", "21", "22", "23", "27A"] as const;
 const PMLA_TRIGGER_SECTIONS = ["3", "4"] as const;
 
 const SECTION_RULES: Record<string, SectionRule> = {
-  "IPC:302": { bailable: false, severity: "severe" },
-  "IPC:307": { bailable: false, severity: "serious" },
-  "IPC:376": { bailable: false, severity: "severe" },
-  "IPC:420": { bailable: false, severity: "moderate" },
-  "IPC:406": { bailable: false, severity: "moderate" },
-  "IPC:498A": { bailable: false, severity: "moderate" },
-  "IPC:379": { bailable: true, severity: "minor" },
-  "IPC:323": { bailable: true, severity: "minor" },
-  "IPC:324": { bailable: true, severity: "minor" },
-  "IPC:504": { bailable: true, severity: "minor" },
-  "IPC:506": { bailable: true, severity: "minor" },
-  "BNS:103": { bailable: false, severity: "severe" },
-  "BNS:109": { bailable: false, severity: "serious" },
-  "BNS:64": { bailable: false, severity: "severe" },
-  "BNS:318:4": { bailable: false, severity: "moderate" },
-  "BNS:316:2": { bailable: false, severity: "moderate" },
-  "BNS:85": { bailable: false, severity: "moderate" },
-  "NDPS:8": { bailable: false, severity: "serious" },
-  "NDPS:21": { bailable: false, severity: "serious" },
-  "NDPS:22": { bailable: false, severity: "serious" },
-  "PMLA:3": { bailable: false, severity: "serious" },
-  "PMLA:4": { bailable: false, severity: "serious" },
+  "IPC:302": { bailable: false, severity: "severe", defaultBailThreshold: 90 },
+  "IPC:307": { bailable: false, severity: "serious", defaultBailThreshold: 90 },
+  "IPC:376": { bailable: false, severity: "severe", defaultBailThreshold: 90 },
+  "IPC:420": { bailable: false, severity: "moderate", defaultBailThreshold: 60 },
+  "IPC:406": { bailable: false, severity: "moderate", defaultBailThreshold: 60 },
+  "IPC:498A": { bailable: false, severity: "moderate", defaultBailThreshold: 60 },
+  "IPC:379": { bailable: true, severity: "minor", defaultBailThreshold: 60 },
+  "IPC:323": { bailable: true, severity: "minor", defaultBailThreshold: 60 },
+  "IPC:324": { bailable: true, severity: "minor", defaultBailThreshold: 60 },
+  "IPC:504": { bailable: true, severity: "minor", defaultBailThreshold: 60 },
+  "IPC:506": { bailable: true, severity: "minor", defaultBailThreshold: 60 },
+  "BNS:103": { bailable: false, severity: "severe", defaultBailThreshold: 90 },
+  "BNS:109": { bailable: false, severity: "serious", defaultBailThreshold: 90 },
+  "BNS:64": { bailable: false, severity: "severe", defaultBailThreshold: 90 },
+  "BNS:318:4": { bailable: false, severity: "moderate", defaultBailThreshold: 60 },
+  "BNS:316:2": { bailable: false, severity: "moderate", defaultBailThreshold: 60 },
+  "BNS:85": { bailable: false, severity: "moderate", defaultBailThreshold: 60 },
+  "NDPS:8": { bailable: false, severity: "serious", defaultBailThreshold: 60 },
+  "NDPS:21": { bailable: false, severity: "serious", defaultBailThreshold: 90 },
+  "NDPS:22": { bailable: false, severity: "serious", defaultBailThreshold: 90 },
+  "PMLA:3": { bailable: false, severity: "serious", defaultBailThreshold: 60 },
+  "PMLA:4": { bailable: false, severity: "serious", defaultBailThreshold: 60 },
+};
+
+const DEFAULT_BAIL_ONLY_RULES: Record<string, 90> = {
+  "IPC:376A": 90,
+  "IPC:376D": 90,
+  "IPC:396": 90,
+  "IPC:364A": 90,
+  "IPC:121": 90,
+  "IPC:132": 90,
 };
 
 const SEVERITY_ORDER: Record<Severity, number> = {
@@ -116,6 +125,13 @@ const SEVERITY_ORDER: Record<Severity, number> = {
 
 function normalizeSection(section: string): string {
   return section.trim().toUpperCase();
+}
+
+function formatRuleIdentity(identity: LegalRuleIdentity): string {
+  const suffix = identity.subsection ? `(${normalizeSection(identity.subsection)})` : "";
+  return identity.statute === "UNKNOWN"
+    ? `${identity.section}${suffix}`
+    : `${identity.statute} ${identity.section}${suffix}`;
 }
 
 function parseRuleIdentity(value: string | LegalRuleIdentity, framework: LegalFramework = "LEGACY_IPC_CRPC"): LegalRuleIdentity {
@@ -141,14 +157,26 @@ function ruleKey(identity: LegalRuleIdentity): string {
   return `${identity.statute}:${identity.section}${identity.subsection ? `:${normalizeSection(identity.subsection)}` : ""}`;
 }
 
-function isSeriousDefaultBailRule(identity: LegalRuleIdentity): boolean {
-  const key = ruleKey(identity);
-  return SERIOUS_DEFAULT_BAIL_RULES.includes(key as typeof SERIOUS_DEFAULT_BAIL_RULES[number]) ||
-    CURRENT_BNS_SERIOUS_DEFAULT_BAIL_RULES.includes(key as typeof CURRENT_BNS_SERIOUS_DEFAULT_BAIL_RULES[number]);
-}
-
 function normalizeRuleIdentities(sections: Array<string | LegalRuleIdentity>, framework: LegalFramework = "LEGACY_IPC_CRPC"): LegalRuleIdentity[] {
   return sections.map((section) => parseRuleIdentity(section, framework)).filter((section) => section.section);
+}
+
+function evaluateDefaultBailRules(identities: LegalRuleIdentity[]): {
+  recognizedRuleIdentities: LegalRuleIdentity[];
+  defaultBailThreshold: DefaultBailThreshold;
+} {
+  const recognizedRuleIdentities = identities.filter((identity) => {
+    return Boolean(SECTION_RULES[ruleKey(identity)] || DEFAULT_BAIL_ONLY_RULES[ruleKey(identity)]);
+  });
+
+  const thresholds = recognizedRuleIdentities.map((identity) =>
+    SECTION_RULES[ruleKey(identity)]?.defaultBailThreshold ?? DEFAULT_BAIL_ONLY_RULES[ruleKey(identity)] ?? null,
+  ).filter((threshold): threshold is Exclude<DefaultBailThreshold, null> => threshold !== null);
+
+  return {
+    recognizedRuleIdentities,
+    defaultBailThreshold: thresholds.length > 0 ? Math.max(...thresholds) as 60 | 90 : null,
+  };
 }
 
 function includesAnySection(sections: LegalRuleIdentity[], statute: LegalStatute, targetCodes: readonly string[]): boolean {
@@ -184,11 +212,20 @@ function formatYesNo(value: boolean): string {
  * using a deterministic 60-day / 90-day threshold based on the listed sections.
  */
 export function checkDefaultBail(
-  sections: Array<string | LegalRuleIdentity>,
+  defaultBailThreshold: DefaultBailThreshold,
   custodyDays: number | null,
   chargesheetFiled: boolean,
 ): DefaultBailResult {
-  const identities = normalizeRuleIdentities(sections);
+  if (defaultBailThreshold === null) {
+    return {
+      eligible: null,
+      daysRequired: 0,
+      daysServed: custodyDays === null ? null : Math.max(0, Math.floor(custodyDays)),
+      daysRemaining: null,
+      note: "No recognized supported offense; default bail threshold unresolved",
+    };
+  }
+
   if (custodyDays === null) {
     if (chargesheetFiled) {
       return {
@@ -200,8 +237,7 @@ export function checkDefaultBail(
       };
     }
 
-    const hasSeriousSection = identities.some(isSeriousDefaultBailRule);
-    const daysRequired = hasSeriousSection ? 90 : 60;
+    const daysRequired = defaultBailThreshold;
     return {
       eligible: null,
       daysRequired,
@@ -223,8 +259,7 @@ export function checkDefaultBail(
     };
   }
 
-  const hasSeriousSection = identities.some(isSeriousDefaultBailRule);
-  const daysRequired = hasSeriousSection ? 90 : 60;
+  const daysRequired = defaultBailThreshold;
   const eligible = daysServed >= daysRequired;
   const daysRemaining = eligible ? 0 : daysRequired - daysServed;
 
@@ -245,13 +280,14 @@ export function checkDefaultBail(
  */
 export function classifyOffense(sections: Array<string | LegalRuleIdentity>, framework: LegalFramework = "LEGACY_IPC_CRPC"): OffenseClassification {
   const identities = normalizeRuleIdentities(sections, framework);
-  const primarySection = findPrimarySection(identities);
   const primaryRule = identities.map((section) => findRuleForSection(section)).find(Boolean) ?? null;
+  const supportedIdentities = identities.filter((section) => findRuleForSection(section) !== null);
+  const primarySection = findPrimarySection(supportedIdentities);
   const hasNDPS = includesAnySection(identities, "NDPS", NDPS_TRIGGER_SECTIONS);
   const hasPMLA = includesAnySection(identities, "PMLA", PMLA_TRIGGER_SECTIONS);
 
-  let selectedSeverity: Severity = primaryRule?.severity ?? "moderate";
-  let bailable = primaryRule?.bailable ?? false;
+  let selectedSeverity: Severity | null = primaryRule?.severity ?? null;
+  let bailable: boolean | null = primaryRule?.bailable ?? null;
 
   for (const section of identities) {
     const rule = findRuleForSection(section);
@@ -259,11 +295,11 @@ export function classifyOffense(sections: Array<string | LegalRuleIdentity>, fra
       continue;
     }
 
-    if (SEVERITY_ORDER[rule.severity] > SEVERITY_ORDER[selectedSeverity]) {
+    if (selectedSeverity === null || SEVERITY_ORDER[rule.severity] > SEVERITY_ORDER[selectedSeverity]) {
       selectedSeverity = rule.severity;
     }
 
-    if (!rule.bailable) {
+    if (bailable !== null && !rule.bailable) {
       bailable = false;
     }
   }
@@ -373,7 +409,9 @@ export function checkJuvenileFlag(age: number): JuvenileResult {
 function buildPromptInjection(output: {
   framework: LegalFramework;
   defaultBailProvision: string | null;
+  defaultBailThreshold: DefaultBailThreshold;
   defaultBail: DefaultBailResult;
+  unresolvedRuleIdentities: LegalRuleIdentity[];
   offenseClass: OffenseClassification;
   ndpsBar: NDPSBarResult | null;
   pmlaConditions: PMLAResult | null;
@@ -386,12 +424,21 @@ function buildPromptInjection(output: {
     output.offenseClass.supported
       ? `Offense Classification: [${output.offenseClass.bailable ? "bailable" : "non-bailable"}], Severity: [${output.offenseClass.severity}]`
       : "Offense Classification: [unsupported / not determined by the deterministic rule table]",
-    `Primary Section: [${output.offenseClass.primarySection}]`,
+    `Primary Section: [${output.offenseClass.primarySection || "not determined"}]`,
+    output.unresolvedRuleIdentities.length > 0
+      ? `Unsupported or unresolved supplied sections: [${output.unresolvedRuleIdentities.map((section) => formatRuleIdentity(section)).join(", ")}]`
+      : "",
     "",
     `Default Bail (${output.defaultBailProvision || "framework unresolved"}):`,
   ];
 
-  if (output.defaultBail.daysServed === null) {
+  if (output.defaultBailThreshold === null) {
+    lines.push(
+      `- Eligible: [not computed]`,
+      `- Days served: [${output.defaultBail.daysServed === null ? "unspecified — not assumed" : output.defaultBail.daysServed}]`,
+      `- ${output.defaultBail.note}`,
+    );
+  } else if (output.defaultBail.daysServed === null) {
     const chargesheetBarsDefaultBail = output.defaultBail.note === "Chargesheet already filed";
     lines.push(
       `- Eligible: [${chargesheetBarsDefaultBail ? "no" : "not computed"}]`,
@@ -461,10 +508,17 @@ export function runLegalRules(input: LegalRuleInput): LegalRuleOutput {
     if (framework === "UNSPECIFIED") {
       return section.statute === "IPC" || section.statute === "NDPS" || section.statute === "PMLA";
     }
-    return section.statute === "IPC" || section.statute === "NDPS" || section.statute === "PMLA";
+    if (framework === "LEGACY_IPC_CRPC") {
+      return section.statute === "IPC" || section.statute === "NDPS" || section.statute === "PMLA";
+    }
+    return section.statute === "IPC" || section.statute === "BNS" || section.statute === "NDPS" || section.statute === "PMLA";
   });
-  const defaultBail = checkDefaultBail(ruleSections, input.custodyDays, input.chargesheetFiled);
+  const defaultBailRules = evaluateDefaultBailRules(ruleSections);
+  const defaultBail = checkDefaultBail(defaultBailRules.defaultBailThreshold, input.custodyDays, input.chargesheetFiled);
   const offenseClass = classifyOffense(ruleSections, framework);
+  const unresolvedRuleIdentities = ruleSections.filter((identity) =>
+    !SECTION_RULES[ruleKey(identity)] && !DEFAULT_BAIL_ONLY_RULES[ruleKey(identity)],
+  );
   const juvenile = checkJuvenileFlag(input.age);
   const ndpsBar = offenseClass.hasNDPS ? checkNDPSBar(ruleSections, input.ndpsQuantity ?? "unknown") : null;
   const pmlaConditions = offenseClass.hasPMLA ? checkPMLAConditions(ruleSections, input.pmlaAmount) : null;
@@ -473,6 +527,9 @@ export function runLegalRules(input: LegalRuleInput): LegalRuleOutput {
     framework,
     defaultBailProvision: defaultBailProvisionForFramework(framework),
     defaultBail,
+    defaultBailThreshold: defaultBailRules.defaultBailThreshold,
+    recognizedRuleIdentities: defaultBailRules.recognizedRuleIdentities,
+    unresolvedRuleIdentities,
     offenseClass,
     ndpsBar,
     pmlaConditions,

@@ -11,7 +11,7 @@ import { AnalyzeRequest, CaseAnalysis } from "@/lib/analysis-types";
 import db from "@/lib/db";
 import { buildFallbackPrecedents, normalizePrecedents } from "@/lib/precedents";
 import { getOrCreateUser } from "@/lib/user-sync";
-import { runLegalRules, LegalRuleInput } from "@/lib/legal-rules";
+import { runLegalRules, LegalRuleInput, type LegalRuleOutput } from "@/lib/legal-rules";
 import {
   formatAuthoritativeSectionsBlock,
   mergeApplicableSections,
@@ -285,7 +285,7 @@ function buildCaseDescriptionFromRecord(caseRecord: {
     .join("\n\n");
 }
 
-function buildAnalysisPersistenceData(caseId: string, analysis: CaseAnalysis) {
+function buildAnalysisPersistenceData(caseId: string, analysis: CaseAnalysis, legalRules: LegalRuleOutput) {
   const riskScore = clampRiskScore(analysis.riskScore);
   const eligibilityStatus = mapVerdictToEligibilityStatus(analysis.verdict);
   const confidenceLevel = mapRiskScoreToConfidenceLevel(riskScore);
@@ -321,7 +321,9 @@ function buildAnalysisPersistenceData(caseId: string, analysis: CaseAnalysis) {
         : "MODERATE",
     },
     legalBasis: {
-      classification: analysis.verdict === "Unfavorable" ? "NON_BAILABLE" : "BAILABLE",
+      classification: legalRules.offenseClass.supported
+        ? (analysis.verdict === "Unfavorable" ? "NON_BAILABLE" : "BAILABLE")
+        : "UNRESOLVED",
       applicableSections: applicableSectionCodes,
       primarySection: applicableSectionCodes[0] ?? "",
     },
@@ -341,7 +343,7 @@ function buildAnalysisPersistenceData(caseId: string, analysis: CaseAnalysis) {
   };
 }
 
-async function persistAnalysis(caseId: string, analysis: CaseAnalysis, userId: string) {
+async function persistAnalysis(caseId: string, analysis: CaseAnalysis, userId: string, legalRules: LegalRuleOutput) {
   const caseRecord = await db.case.findFirst({
     where: {
       id: caseId,
@@ -356,7 +358,7 @@ async function persistAnalysis(caseId: string, analysis: CaseAnalysis, userId: s
     throw new Error("Case not found for analysis persistence.");
   }
 
-  const analysisData = buildAnalysisPersistenceData(caseId, analysis);
+  const analysisData = buildAnalysisPersistenceData(caseId, analysis, legalRules);
   const { caseId: persistedCaseId, ...analysisUpdateData } = analysisData;
 
   await db.analysis.upsert({
@@ -758,6 +760,7 @@ ${structuredCaseFacts}
       parsed: parsedSectionRecords,
       bailType: resolvedBailType,
       framework: resolvedLegalFramework,
+      bailCourtLevel: body.bailCourtLevel,
       llmSections: rawSections,
       });
 
@@ -853,7 +856,8 @@ ${structuredCaseFacts}
           await persistAnalysis(
             requestedCaseId,
             mappedAnalysis,
-            userIdForPersistence
+            userIdForPersistence,
+            legalRules,
           );
         }
       } catch (persistenceError) {
