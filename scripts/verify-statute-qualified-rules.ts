@@ -34,7 +34,7 @@ const bns103 = rules([{ statute: "BNS", section: "103" }], "CURRENT_BNS_BNSS");
 const bns420 = rules([{ statute: "BNS", section: "420" }], "CURRENT_BNS_BNSS");
 const unspecified302 = rules(["302"], "UNSPECIFIED");
 const unspecified420 = rules(["420"], "UNSPECIFIED");
-check("BNS 103 does not invoke IPC 302", !bns103.offenseClass.supported && !bns103.promptInjection.includes("non-bailable"));
+check("BNS 103 uses its own BNS rule and does not invoke IPC 302", bns103.offenseClass.supported && !bns103.offenseClass.bailable && bns103.offenseClass.primarySection === "BNS 103");
 check("BNS 420 does not invoke IPC 420", !bns420.offenseClass.supported && !bns420.promptInjection.includes("non-bailable"));
 check("Bare 302 under unspecified is not IPC 302", !unspecified302.offenseClass.supported && unspecified302.offenseClass.primarySection === "");
 check("Bare 420 under unspecified is not IPC 420", !unspecified420.offenseClass.supported && unspecified420.offenseClass.primarySection === "");

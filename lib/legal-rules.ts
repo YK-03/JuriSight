@@ -78,6 +78,7 @@ const SERIOUS_DEFAULT_BAIL_RULES = [
   "IPC:302", "IPC:307", "IPC:376", "IPC:376A", "IPC:376D", "IPC:396", "IPC:364A", "IPC:121", "IPC:132",
   "NDPS:21", "NDPS:22",
 ] as const;
+const CURRENT_BNS_SERIOUS_DEFAULT_BAIL_RULES = ["BNS:103", "BNS:109", "BNS:64"] as const;
 const NDPS_TRIGGER_SECTIONS = ["8", "21", "22", "23", "27A"] as const;
 const PMLA_TRIGGER_SECTIONS = ["3", "4"] as const;
 
@@ -93,6 +94,12 @@ const SECTION_RULES: Record<string, SectionRule> = {
   "IPC:324": { bailable: true, severity: "minor" },
   "IPC:504": { bailable: true, severity: "minor" },
   "IPC:506": { bailable: true, severity: "minor" },
+  "BNS:103": { bailable: false, severity: "severe" },
+  "BNS:109": { bailable: false, severity: "serious" },
+  "BNS:64": { bailable: false, severity: "severe" },
+  "BNS:318:4": { bailable: false, severity: "moderate" },
+  "BNS:316:2": { bailable: false, severity: "moderate" },
+  "BNS:85": { bailable: false, severity: "moderate" },
   "NDPS:8": { bailable: false, severity: "serious" },
   "NDPS:21": { bailable: false, severity: "serious" },
   "NDPS:22": { bailable: false, severity: "serious" },
@@ -131,7 +138,13 @@ function parseRuleIdentity(value: string | LegalRuleIdentity, framework: LegalFr
 }
 
 function ruleKey(identity: LegalRuleIdentity): string {
-  return `${identity.statute}:${identity.section}`;
+  return `${identity.statute}:${identity.section}${identity.subsection ? `:${normalizeSection(identity.subsection)}` : ""}`;
+}
+
+function isSeriousDefaultBailRule(identity: LegalRuleIdentity): boolean {
+  const key = ruleKey(identity);
+  return SERIOUS_DEFAULT_BAIL_RULES.includes(key as typeof SERIOUS_DEFAULT_BAIL_RULES[number]) ||
+    CURRENT_BNS_SERIOUS_DEFAULT_BAIL_RULES.includes(key as typeof CURRENT_BNS_SERIOUS_DEFAULT_BAIL_RULES[number]);
 }
 
 function normalizeRuleIdentities(sections: Array<string | LegalRuleIdentity>, framework: LegalFramework = "LEGACY_IPC_CRPC"): LegalRuleIdentity[] {
@@ -145,7 +158,8 @@ function includesAnySection(sections: LegalRuleIdentity[], statute: LegalStatute
 function findPrimarySection(sections: LegalRuleIdentity[]): string {
   for (const section of sections) {
     if (section.section !== "34" && section.statute !== "UNKNOWN") {
-      return section.statute === "IPC" ? section.section : `${section.statute} ${section.section}`;
+      const suffix = section.subsection ? `(${normalizeSection(section.subsection)})` : "";
+      return section.statute === "IPC" ? `${section.section}${suffix}` : `${section.statute} ${section.section}${suffix}`;
     }
   }
 
@@ -186,7 +200,7 @@ export function checkDefaultBail(
       };
     }
 
-    const hasSeriousSection = identities.some((section) => SERIOUS_DEFAULT_BAIL_RULES.includes(ruleKey(section) as typeof SERIOUS_DEFAULT_BAIL_RULES[number]));
+    const hasSeriousSection = identities.some(isSeriousDefaultBailRule);
     const daysRequired = hasSeriousSection ? 90 : 60;
     return {
       eligible: null,
@@ -209,7 +223,7 @@ export function checkDefaultBail(
     };
   }
 
-  const hasSeriousSection = identities.some((section) => SERIOUS_DEFAULT_BAIL_RULES.includes(ruleKey(section) as typeof SERIOUS_DEFAULT_BAIL_RULES[number]));
+  const hasSeriousSection = identities.some(isSeriousDefaultBailRule);
   const daysRequired = hasSeriousSection ? 90 : 60;
   const eligible = daysServed >= daysRequired;
   const daysRemaining = eligible ? 0 : daysRequired - daysServed;
