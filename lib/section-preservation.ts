@@ -1,7 +1,7 @@
-import { hasDeterministicSectionRule } from "./legal-rules";
+import { hasDeterministicSectionRule, type LegalRuleIdentity, type LegalStatute } from "./legal-rules";
 import { inferLegalFrameworkFromSections, type LegalFramework } from "./legal-framework";
 
-export type Statute = "IPC" | "BNS" | "CRPC" | "BNSS" | "UNKNOWN";
+export type Statute = LegalStatute;
 export type StatutePrefix = Exclude<Statute, "UNKNOWN">;
 
 export type ParsedSection = {
@@ -26,9 +26,9 @@ const PROCEDURAL_CRPC = new Set(["437", "438", "439", "167", "167A", "41A"]);
 export function parseSuppliedSections(
   raw: string,
   framework?: LegalFramework,
-): { forRules: string[]; suppliedRaw: string[]; parsed: ParsedSection[] } {
+): { forRules: string[]; ruleIdentities: LegalRuleIdentity[]; suppliedRaw: string[]; parsed: ParsedSection[] } {
   if (!raw || !raw.trim() || /^not specified/i.test(raw.trim())) {
-    return { forRules: [], suppliedRaw: [], parsed: [] };
+    return { forRules: [], ruleIdentities: [], suppliedRaw: [], parsed: [] };
   }
 
   const effectiveFramework = framework ?? inferLegalFrameworkFromSections(raw);
@@ -42,7 +42,7 @@ export function parseSuppliedSections(
     const token = rawToken.trim();
     if (!token) continue;
 
-    const prefixMatch = token.match(/^(IPC|BNS|CRPC|CrPC|BNSS)\s+(?:Sections?\s+)?(.*)$/i);
+  const prefixMatch = token.match(/^(IPC|BNS|CRPC|CrPC|BNSS|NDPS|PMLA)\s+(?:Sections?\s+)?(.*)$/i);
     let remainder = token;
     let statute: Statute = "UNKNOWN";
     let resolution: ParsedSection["resolution"] = "explicit";
@@ -82,10 +82,18 @@ export function parseSuppliedSections(
     parsed.push({ statute, code, display, resolution, frameworkConflict });
   }
 
-  const forRules = parsed
-    .filter((section) => section.statute === "IPC" && section.resolution !== "ambiguous" && !section.frameworkConflict)
-    .map((section) => section.code);
-  return { forRules, suppliedRaw: parsed.map((section) => section.display), parsed };
+  const ruleIdentities: LegalRuleIdentity[] = parsed
+    .filter((section) =>
+      (section.statute === "IPC" || section.statute === "NDPS" || section.statute === "PMLA") &&
+      section.resolution !== "ambiguous" &&
+      !section.frameworkConflict,
+    )
+    .map((section) => ({ statute: section.statute, section: section.code }));
+
+  const forRules = ruleIdentities
+    .filter((section) => section.statute === "IPC")
+    .map((section) => section.section);
+  return { forRules, ruleIdentities, suppliedRaw: parsed.map((section) => section.display), parsed };
 }
 
 export function formatAuthoritativeSectionsBlock(suppliedRaw: string[]): string {
@@ -161,7 +169,7 @@ function suppliedRelevance(section: ParsedSection): string {
   if (section.statute === "UNKNOWN") return "User-supplied section with unspecified statute; not validated by deterministic legal rules";
   if (section.statute === "BNS" || section.statute === "BNSS") return `User-supplied ${section.statute} section (declared; not validated by the deterministic IPC/special-act rule engine)`;
   if (section.statute === "CRPC") return "User-supplied procedural provision";
-  if (hasDeterministicSectionRule(section.code)) return "User-supplied statutory section; recognized by deterministic legal rules";
+  if (hasDeterministicSectionRule({ statute: section.statute, section: section.code })) return "User-supplied statutory section; recognized by deterministic legal rules";
   return "User-supplied statutory section; no matching deterministic rule (preserved as declared)";
 }
 

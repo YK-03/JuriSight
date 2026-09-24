@@ -491,10 +491,12 @@ export async function POST(req: Request) {
       "Unknown";
 
     // Parse the supplied sections string into:
-    //   parsedSections  → bare codes for runLegalRules (e.g. ["420","468","120B","BNS 318"])
+    //   ruleIdentities  → statute-qualified deterministic inputs
+    //   parsedSections  → legacy bare-code compatibility values
     //   suppliedSectionLabels → display labels preserving IPC/BNS prefix (e.g. ["IPC 420","BNS 318"])
     const {
       forRules: parsedSections,
+      ruleIdentities: parsedRuleIdentities,
       suppliedRaw: suppliedSectionLabels,
       parsed: parsedSectionRecords,
     } = parseSuppliedSections(resolvedSections, resolvedLegalFramework);
@@ -506,7 +508,7 @@ export async function POST(req: Request) {
     // Phase 2: Run deterministic legal rule engine.
     // -------------------------------------------------------------------------
     const legalRuleInput: LegalRuleInput = {
-      sections: parsedSections,
+      sections: parsedRuleIdentities,
       custodyDays: parsedCustodyDays,
       chargesheetFiled,
       age: 25, // age not yet captured in intake; default to adult
@@ -719,7 +721,7 @@ ${structuredCaseFacts}
         ],
         suppliedSections: suppliedSectionLabels,
         deterministicFindings: [
-          legalRules.offenseClass.primarySection
+          legalRules.offenseClass.supported && legalRules.offenseClass.primarySection
             ? `${legalRules.offenseClass.primarySection} classified as ${legalRules.offenseClass.severity}`
             : "",
           legalRules.defaultBail.daysServed !== null

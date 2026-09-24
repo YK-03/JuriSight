@@ -3,6 +3,13 @@ import { defaultBailProvisionForFramework, type LegalFramework } from "./legal-f
 export type Severity = "minor" | "moderate" | "serious" | "severe";
 export type QuantityCategory = "small" | "commercial" | "unknown";
 export type JuvenileRoute = "JJB" | "SessionsCourt" | "Magistrate";
+export type LegalStatute = "IPC" | "BNS" | "CRPC" | "BNSS" | "NDPS" | "PMLA" | "UNKNOWN";
+
+export type LegalRuleIdentity = {
+  statute: LegalStatute;
+  section: string;
+  subsection?: string;
+};
 
 export interface DefaultBailResult {
   eligible: boolean | null;
@@ -14,6 +21,7 @@ export interface DefaultBailResult {
 
 export interface OffenseClassification {
   bailable: boolean;
+  supported: boolean;
   severity: Severity;
   primarySection: string;
   hasNDPS: boolean;
@@ -41,7 +49,7 @@ export interface JuvenileResult {
 }
 
 export interface LegalRuleInput {
-  sections: string[];
+  sections: Array<string | LegalRuleIdentity>;
   custodyDays: number | null;
   chargesheetFiled: boolean;
   age: number;
@@ -66,27 +74,30 @@ interface SectionRule {
   severity: Severity;
 }
 
-const SERIOUS_DEFAULT_BAIL_SECTIONS = ["302", "307", "376", "376A", "376D", "396", "364A", "121", "132"] as const;
+const SERIOUS_DEFAULT_BAIL_RULES = [
+  "IPC:302", "IPC:307", "IPC:376", "IPC:376A", "IPC:376D", "IPC:396", "IPC:364A", "IPC:121", "IPC:132",
+  "NDPS:21", "NDPS:22",
+] as const;
 const NDPS_TRIGGER_SECTIONS = ["8", "21", "22", "23", "27A"] as const;
 const PMLA_TRIGGER_SECTIONS = ["3", "4"] as const;
 
 const SECTION_RULES: Record<string, SectionRule> = {
-  "302": { bailable: false, severity: "severe" },
-  "307": { bailable: false, severity: "serious" },
-  "376": { bailable: false, severity: "severe" },
-  "420": { bailable: false, severity: "moderate" },
-  "406": { bailable: false, severity: "moderate" },
-  "498A": { bailable: false, severity: "moderate" },
-  "379": { bailable: true, severity: "minor" },
-  "323": { bailable: true, severity: "minor" },
-  "324": { bailable: true, severity: "minor" },
-  "504": { bailable: true, severity: "minor" },
-  "506": { bailable: true, severity: "minor" },
-  "8": { bailable: false, severity: "serious" },
-  "21": { bailable: false, severity: "serious" },
-  "22": { bailable: false, severity: "serious" },
-  "3": { bailable: false, severity: "serious" },
-  "4": { bailable: false, severity: "serious" },
+  "IPC:302": { bailable: false, severity: "severe" },
+  "IPC:307": { bailable: false, severity: "serious" },
+  "IPC:376": { bailable: false, severity: "severe" },
+  "IPC:420": { bailable: false, severity: "moderate" },
+  "IPC:406": { bailable: false, severity: "moderate" },
+  "IPC:498A": { bailable: false, severity: "moderate" },
+  "IPC:379": { bailable: true, severity: "minor" },
+  "IPC:323": { bailable: true, severity: "minor" },
+  "IPC:324": { bailable: true, severity: "minor" },
+  "IPC:504": { bailable: true, severity: "minor" },
+  "IPC:506": { bailable: true, severity: "minor" },
+  "NDPS:8": { bailable: false, severity: "serious" },
+  "NDPS:21": { bailable: false, severity: "serious" },
+  "NDPS:22": { bailable: false, severity: "serious" },
+  "PMLA:3": { bailable: false, severity: "serious" },
+  "PMLA:4": { bailable: false, severity: "serious" },
 };
 
 const SEVERITY_ORDER: Record<Severity, number> = {
@@ -100,53 +111,53 @@ function normalizeSection(section: string): string {
   return section.trim().toUpperCase();
 }
 
-function containsSectionNumber(section: string, code: string): boolean {
-  const normalizedSection = normalizeSection(section);
-  const normalizedCode = code.toUpperCase();
-
-  if (normalizedSection === normalizedCode) {
-    return true;
+function parseRuleIdentity(value: string | LegalRuleIdentity, framework: LegalFramework = "LEGACY_IPC_CRPC"): LegalRuleIdentity {
+  if (typeof value !== "string") {
+    return { statute: value.statute, section: normalizeSection(value.section), subsection: value.subsection?.trim() };
   }
 
-  const escapedCode = normalizedCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const patterns = [
-    new RegExp(`(^|[^A-Z0-9])${escapedCode}([^A-Z0-9]|$)`),
-    new RegExp(`(^|[^A-Z0-9])${escapedCode}/`),
-    new RegExp(`/${escapedCode}([^A-Z0-9]|$)`),
-  ];
+  const normalized = normalizeSection(value);
+  const match = normalized.match(/^(IPC|BNS|CRPC|BNSS|NDPS|PMLA)\s+(?:SECTION[S]?\s+)?([0-9]+[A-Z]*)(?:\s*\(([^)]+)\))?$/i);
+  if (match) {
+    const statute = match[1].toUpperCase() as LegalStatute;
+    return { statute, section: match[2].toUpperCase(), subsection: match[3]?.trim() };
+  }
 
-  return patterns.some((pattern) => pattern.test(normalizedSection));
+  const codeMatch = normalized.match(/([0-9]+[A-Z]*)/);
+  return {
+    statute: framework === "LEGACY_IPC_CRPC" || framework === "MIXED_LEGACY" ? "IPC" : "UNKNOWN",
+    section: codeMatch?.[1]?.toUpperCase() ?? "",
+  };
 }
 
-function includesAnySection(sections: string[], targetCodes: readonly string[]): boolean {
-  return sections.some((section) => targetCodes.some((code) => containsSectionNumber(section, code)));
+function ruleKey(identity: LegalRuleIdentity): string {
+  return `${identity.statute}:${identity.section}`;
 }
 
-function findPrimarySection(sections: string[]): string {
+function normalizeRuleIdentities(sections: Array<string | LegalRuleIdentity>, framework: LegalFramework = "LEGACY_IPC_CRPC"): LegalRuleIdentity[] {
+  return sections.map((section) => parseRuleIdentity(section, framework)).filter((section) => section.section);
+}
+
+function includesAnySection(sections: LegalRuleIdentity[], statute: LegalStatute, targetCodes: readonly string[]): boolean {
+  return sections.some((section) => section.statute === statute && targetCodes.includes(section.section));
+}
+
+function findPrimarySection(sections: LegalRuleIdentity[]): string {
   for (const section of sections) {
-    const normalized = normalizeSection(section);
-    if (!containsSectionNumber(normalized, "34")) {
-      return section.trim();
+    if (section.section !== "34" && section.statute !== "UNKNOWN") {
+      return section.statute === "IPC" ? section.section : `${section.statute} ${section.section}`;
     }
   }
 
-  return sections[0]?.trim() ?? "";
+  return "";
 }
 
-function findRuleForSection(section: string): SectionRule | null {
-  const entries = Object.entries(SECTION_RULES).sort((left, right) => right[0].length - left[0].length);
-
-  for (const [code, rule] of entries) {
-    if (containsSectionNumber(section, code)) {
-      return rule;
-    }
-  }
-
-  return null;
+function findRuleForSection(section: string | LegalRuleIdentity, framework: LegalFramework = "LEGACY_IPC_CRPC"): SectionRule | null {
+  return SECTION_RULES[ruleKey(parseRuleIdentity(section, framework))] ?? null;
 }
 
 /** True only when the deterministic engine has an explicit rule for this token. */
-export function hasDeterministicSectionRule(section: string): boolean {
+export function hasDeterministicSectionRule(section: string | LegalRuleIdentity): boolean {
   return findRuleForSection(section) !== null;
 }
 
@@ -159,10 +170,11 @@ function formatYesNo(value: boolean): string {
  * using a deterministic 60-day / 90-day threshold based on the listed sections.
  */
 export function checkDefaultBail(
-  sections: string[],
+  sections: Array<string | LegalRuleIdentity>,
   custodyDays: number | null,
   chargesheetFiled: boolean,
 ): DefaultBailResult {
+  const identities = normalizeRuleIdentities(sections);
   if (custodyDays === null) {
     if (chargesheetFiled) {
       return {
@@ -174,7 +186,7 @@ export function checkDefaultBail(
       };
     }
 
-    const hasSeriousSection = includesAnySection(sections, SERIOUS_DEFAULT_BAIL_SECTIONS);
+    const hasSeriousSection = identities.some((section) => SERIOUS_DEFAULT_BAIL_RULES.includes(ruleKey(section) as typeof SERIOUS_DEFAULT_BAIL_RULES[number]));
     const daysRequired = hasSeriousSection ? 90 : 60;
     return {
       eligible: null,
@@ -197,7 +209,7 @@ export function checkDefaultBail(
     };
   }
 
-  const hasSeriousSection = includesAnySection(sections, SERIOUS_DEFAULT_BAIL_SECTIONS);
+  const hasSeriousSection = identities.some((section) => SERIOUS_DEFAULT_BAIL_RULES.includes(ruleKey(section) as typeof SERIOUS_DEFAULT_BAIL_RULES[number]));
   const daysRequired = hasSeriousSection ? 90 : 60;
   const eligible = daysServed >= daysRequired;
   const daysRemaining = eligible ? 0 : daysRequired - daysServed;
@@ -217,16 +229,17 @@ export function checkDefaultBail(
  * Classifies the offense as bailable or non-bailable using a hardcoded section map,
  * while also surfacing severity, primary section, and special-statute flags.
  */
-export function classifyOffense(sections: string[]): OffenseClassification {
-  const primarySection = findPrimarySection(sections);
-  const primaryRule = findRuleForSection(primarySection);
-  const hasNDPS = includesAnySection(sections, NDPS_TRIGGER_SECTIONS);
-  const hasPMLA = includesAnySection(sections, PMLA_TRIGGER_SECTIONS);
+export function classifyOffense(sections: Array<string | LegalRuleIdentity>, framework: LegalFramework = "LEGACY_IPC_CRPC"): OffenseClassification {
+  const identities = normalizeRuleIdentities(sections, framework);
+  const primarySection = findPrimarySection(identities);
+  const primaryRule = identities.map((section) => findRuleForSection(section)).find(Boolean) ?? null;
+  const hasNDPS = includesAnySection(identities, "NDPS", NDPS_TRIGGER_SECTIONS);
+  const hasPMLA = includesAnySection(identities, "PMLA", PMLA_TRIGGER_SECTIONS);
 
   let selectedSeverity: Severity = primaryRule?.severity ?? "moderate";
   let bailable = primaryRule?.bailable ?? false;
 
-  for (const section of sections) {
+  for (const section of identities) {
     const rule = findRuleForSection(section);
     if (!rule) {
       continue;
@@ -243,6 +256,7 @@ export function classifyOffense(sections: string[]): OffenseClassification {
 
   return {
     bailable,
+    supported: identities.some((section) => findRuleForSection(section) !== null),
     severity: selectedSeverity,
     primarySection,
     hasNDPS,
@@ -255,10 +269,10 @@ export function classifyOffense(sections: string[]): OffenseClassification {
  * conditions must be satisfied based on quantity category.
  */
 export function checkNDPSBar(
-  sections: string[],
+  sections: Array<string | LegalRuleIdentity>,
   quantity: QuantityCategory,
 ): NDPSBarResult {
-  const appliesToStatute = includesAnySection(sections, NDPS_TRIGGER_SECTIONS);
+  const appliesToStatute = includesAnySection(normalizeRuleIdentities(sections, "UNSPECIFIED"), "NDPS", NDPS_TRIGGER_SECTIONS);
 
   if (!appliesToStatute) {
     return {
@@ -300,10 +314,10 @@ export function checkNDPSBar(
  * sections 3 or 4 and carries forward the scheduled offense amount if provided.
  */
 export function checkPMLAConditions(
-  sections: string[],
+  sections: Array<string | LegalRuleIdentity>,
   pmlaAmount?: number,
 ): PMLAResult {
-  const applies = includesAnySection(sections, PMLA_TRIGGER_SECTIONS);
+  const applies = includesAnySection(normalizeRuleIdentities(sections, "UNSPECIFIED"), "PMLA", PMLA_TRIGGER_SECTIONS);
 
   if (!applies) {
     return {
@@ -355,7 +369,9 @@ function buildPromptInjection(output: {
     "DETERMINISTIC LEGAL FINDINGS (BACKEND COMPUTED — YOU MUST NOT CONTRADICT THESE):",
     "",
     `Legal Framework: [${output.framework}]`,
-    `Offense Classification: [${output.offenseClass.bailable ? "bailable" : "non-bailable"}], Severity: [${output.offenseClass.severity}]`,
+    output.offenseClass.supported
+      ? `Offense Classification: [${output.offenseClass.bailable ? "bailable" : "non-bailable"}], Severity: [${output.offenseClass.severity}]`
+      : "Offense Classification: [unsupported / not determined by the deterministic rule table]",
     `Primary Section: [${output.offenseClass.primarySection}]`,
     "",
     `Default Bail (${output.defaultBailProvision || "framework unresolved"}):`,
@@ -423,11 +439,18 @@ function buildPromptInjection(output: {
  */
 export function runLegalRules(input: LegalRuleInput): LegalRuleOutput {
   const framework = input.framework ?? "LEGACY_IPC_CRPC";
-  const ruleSections = framework === "LEGACY_IPC_CRPC" || framework === "MIXED_LEGACY"
-    ? input.sections
-    : [];
+  const normalizedSections = normalizeRuleIdentities(input.sections, framework);
+  const ruleSections = normalizedSections.filter((section) => {
+    if (framework === "CURRENT_BNS_BNSS") {
+      return section.statute === "BNS" || section.statute === "NDPS" || section.statute === "PMLA";
+    }
+    if (framework === "UNSPECIFIED") {
+      return section.statute === "IPC" || section.statute === "NDPS" || section.statute === "PMLA";
+    }
+    return section.statute === "IPC" || section.statute === "NDPS" || section.statute === "PMLA";
+  });
   const defaultBail = checkDefaultBail(ruleSections, input.custodyDays, input.chargesheetFiled);
-  const offenseClass = classifyOffense(ruleSections);
+  const offenseClass = classifyOffense(ruleSections, framework);
   const juvenile = checkJuvenileFlag(input.age);
   const ndpsBar = offenseClass.hasNDPS ? checkNDPSBar(ruleSections, input.ndpsQuantity ?? "unknown") : null;
   const pmlaConditions = offenseClass.hasPMLA ? checkPMLAConditions(ruleSections, input.pmlaAmount) : null;

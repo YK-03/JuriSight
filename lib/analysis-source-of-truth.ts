@@ -18,8 +18,11 @@ export function buildDeterministicReasoning(
   legalRules: LegalRuleOutput,
   riskScore: number,
 ): string {
+  const offenseLine = legalRules.offenseClass.supported
+    ? `Offense classification: [${legalRules.offenseClass.bailable ? "bailable" : "non-bailable"}], severity: [${legalRules.offenseClass.severity}], primary section: [${legalRules.offenseClass.primarySection || "unspecified"}].`
+    : `Offense classification: [unsupported / not determined by the deterministic rule table], primary section: [${legalRules.offenseClass.primarySection || "unspecified"}].`;
   const lines = [
-    `Offense classification: [${legalRules.offenseClass.bailable ? "bailable" : "non-bailable"}], severity: [${legalRules.offenseClass.severity}], primary section: [${legalRules.offenseClass.primarySection || "unspecified"}].`,
+    offenseLine,
     formatDefaultBail(legalRules),
   ];
 
