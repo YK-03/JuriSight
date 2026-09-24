@@ -205,6 +205,7 @@ function AnalyzeIntakeContent() {
           ...form,
           whatHappened: trimmedNarrative,
           custodyDuration: form.custodyStatus,
+          bailCourtLevel: form.bailType.startsWith("Regular Bail") ? form.bailCourtLevel || undefined : undefined,
           caseId 
         }),
       });
@@ -434,7 +435,14 @@ function AnalyzeIntakeContent() {
                   <span className="text-sm font-medium text-text-primary">Bail type sought</span>
                   <select
                     value={form.bailType}
-                    onChange={(event) => updateField("bailType", event.target.value)}
+                    onChange={(event) => {
+                      const bailType = event.target.value;
+                      setForm((current) => ({
+                        ...current,
+                        bailType,
+                        bailCourtLevel: bailType.startsWith("Regular Bail") ? current.bailCourtLevel : "",
+                      }));
+                    }}
                     className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
                   >
                     <option value="">Select bail type...</option>
@@ -455,6 +463,22 @@ function AnalyzeIntakeContent() {
                     placeholder="e.g. Investigation pending, Notice u/s 41A issued, Charge sheet filed"
                   />
                 </label>
+
+                {form.bailType.startsWith("Regular Bail") ? (
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-text-primary">Court level for regular bail <span className="text-text-secondary">(optional)</span></span>
+                    <select
+                      value={form.bailCourtLevel}
+                      onChange={(event) => updateField("bailCourtLevel", event.target.value as IntakeFormState["bailCourtLevel"])}
+                      className="form-select h-12 rounded-2xl border border-border/50 bg-bg-primary px-4 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                    >
+                      <option value="">Select court level...</option>
+                      <option value="MAGISTRATE">Magistrate</option>
+                      <option value="SESSIONS">Sessions Court</option>
+                      <option value="HIGH_COURT">High Court</option>
+                    </select>
+                  </label>
+                ) : null}
 
                 <label className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-text-primary">Custody status / duration</span>

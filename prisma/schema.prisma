@@ -36,6 +36,7 @@ model Case {
   maximumSentenceYears Int?
   timeServedDays       Int?
   bailType             String?
+  bailCourtLevel       String?
   proceduralStage      String?
   custodyStatus        String?
   previousBail         String?

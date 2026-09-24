@@ -6,6 +6,7 @@ export type CaseHistoryStatus =
   | "Educated";
 
 import type { LegalFramework } from "./legal-framework";
+import type { BailCourtLevel } from "./section-preservation";
 
 export type IntakeFormState = {
   caseTitle: string;
@@ -20,6 +21,7 @@ export type IntakeFormState = {
   previousBail: string;
   cooperationLevel: string;
   legalFramework?: LegalFramework;
+  bailCourtLevel?: BailCourtLevel | "";
   whatHappened: string;
   incidentDate: string;
   incidentLocation: string;
@@ -40,6 +42,7 @@ export const INITIAL_FORM_STATE: IntakeFormState = {
   custodyStatus: "",
   previousBail: "",
   cooperationLevel: "",
+  bailCourtLevel: "",
   whatHappened: "",
   incidentDate: "",
   incidentLocation: "",
@@ -104,6 +107,7 @@ export function buildCasePayload(values: IntakeFormState) {
     custodyStatus: values.custodyStatus.trim() || undefined,
     previousBail: values.previousBail.trim() || undefined,
     legalFramework: values.legalFramework,
+    bailCourtLevel: values.bailType.startsWith("Regular Bail") ? values.bailCourtLevel || undefined : undefined,
     specialAct: undefined,
   };
 }

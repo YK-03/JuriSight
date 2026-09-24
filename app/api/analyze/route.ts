@@ -16,6 +16,7 @@ import {
   formatAuthoritativeSectionsBlock,
   mergeApplicableSections,
   parseSuppliedSections,
+  resolveBailCourtLevel,
 } from "@/lib/section-preservation";
 import {
   buildCaseSpecificGroundingCorpus,
@@ -422,6 +423,7 @@ export async function POST(req: Request) {
           maximumSentenceYears: true,
           timeServedDays: true,
           bailType: true,
+          bailCourtLevel: true,
           proceduralStage: true,
           custodyStatus: true,
           previousBail: true,
@@ -491,6 +493,7 @@ export async function POST(req: Request) {
       caseRecord?.proceduralStage ||
       normalized.stage ||
       "Unknown";
+    const resolvedBailCourtLevel = resolveBailCourtLevel(body.bailCourtLevel, caseRecord?.bailCourtLevel);
 
     // Parse the supplied sections string into:
     //   ruleIdentities  → statute-qualified deterministic inputs
@@ -760,7 +763,7 @@ ${structuredCaseFacts}
       parsed: parsedSectionRecords,
       bailType: resolvedBailType,
       framework: resolvedLegalFramework,
-      bailCourtLevel: body.bailCourtLevel,
+      bailCourtLevel: resolvedBailCourtLevel,
       llmSections: rawSections,
       });
 

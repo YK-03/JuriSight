@@ -4,6 +4,17 @@ import { inferLegalFrameworkFromSections, type LegalFramework } from "./legal-fr
 export type Statute = LegalStatute;
 export type StatutePrefix = Exclude<Statute, "UNKNOWN">;
 export type BailCourtLevel = "MAGISTRATE" | "SESSIONS" | "HIGH_COURT" | "UNSPECIFIED";
+export const BAIL_COURT_LEVELS = ["MAGISTRATE", "SESSIONS", "HIGH_COURT", "UNSPECIFIED"] as const satisfies readonly BailCourtLevel[];
+
+export function isBailCourtLevel(value: unknown): value is BailCourtLevel {
+  return typeof value === "string" && (BAIL_COURT_LEVELS as readonly string[]).includes(value);
+}
+
+export function resolveBailCourtLevel(explicit: unknown, persisted: unknown): BailCourtLevel | undefined {
+  if (isBailCourtLevel(explicit)) return explicit;
+  if (isBailCourtLevel(persisted)) return persisted;
+  return undefined;
+}
 
 export type ParsedSection = {
   statute: Statute;
