@@ -12,6 +12,7 @@
 
 import { runLegalRules } from "../lib/legal-rules";
 import { parseSuppliedSections } from "../lib/section-preservation";
+import { parseCustodyDaysForRules } from "../lib/case-intake";
 
 let passed = 0;
 let failed = 0;
@@ -24,20 +25,6 @@ function assert(label: string, condition: boolean, detail?: string) {
     console.error("  FAIL: " + label + (detail ? "\n     " + detail : ""));
     failed++;
   }
-}
-
-function parseCustodyDaysForRules(custodyDuration: string): number {
-  const val = custodyDuration.toLowerCase();
-  if (val.includes("under") || val.includes("30")) return 25;
-  if (val.includes("1 to 6") || val.includes("1-6")) return 90;
-  if (val.includes("6 to 12") || val.includes("6-12")) return 180;
-  if (val.includes("1 to 2") || val.includes("1-2")) return 365;
-  if (val.includes("over 2") || val.includes("2+")) return 730;
-  const dayMatch = val.match(/(\d+)\s*day/);
-  if (dayMatch) return parseInt(dayMatch[1], 10);
-  const monthMatch = val.match(/(\d+)\s*month/);
-  if (monthMatch) return parseInt(monthMatch[1], 10) * 30;
-  return 30;
 }
 
 function isChargesheetFiled(proceduralStage: string): boolean {
@@ -100,8 +87,11 @@ console.log("\nTest D: Case A vs Case B produce different legal grounding");
 
   assert("Case A chargesheet flag is false", caseAChargesheet === false, "Got: " + caseAChargesheet);
   assert("Case B chargesheet flag is true", caseBChargesheet === true, "Got: " + caseBChargesheet);
-  assert("Case A custody days = 30 (default)", caseACustodyDays === 30, "Got: " + caseACustodyDays);
+  assert("Case A custody days is unspecified (null), not 30", caseACustodyDays === null, "Got: " + caseACustodyDays);
   assert("Case B custody days = 45", caseBCustodyDays === 45, "Got: " + caseBCustodyDays);
+  assert("Case A default-bail days served is unspecified", caseALegalRules.defaultBail.daysServed === null);
+  assert("Case A default-bail eligibility is unknown", caseALegalRules.defaultBail.eligible === null);
+  assert("Case A default-bail eligibility is not computed from a fabricated zero", caseALegalRules.promptInjection.includes("Eligible: [not computed]"));
   assert("promptInjections differ", caseALegalRules.promptInjection !== caseBLegalRules.promptInjection);
   assert("Default bail eligibility differs", JSON.stringify(caseALegalRules.defaultBail) !== JSON.stringify(caseBLegalRules.defaultBail));
 }
