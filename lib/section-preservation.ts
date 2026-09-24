@@ -3,6 +3,7 @@ import { inferLegalFrameworkFromSections, type LegalFramework } from "./legal-fr
 
 export type Statute = LegalStatute;
 export type StatutePrefix = Exclude<Statute, "UNKNOWN">;
+export type BailCourtLevel = "MAGISTRATE" | "SESSIONS" | "HIGH_COURT" | "UNSPECIFIED";
 
 export type ParsedSection = {
   statute: Statute;
@@ -140,7 +141,11 @@ function unresolvedProceduralEntry(framework: LegalFramework, bailType: string):
   };
 }
 
-export function proceduralProvisionsForBailType(bailType: string, framework: LegalFramework = "LEGACY_IPC_CRPC"): ApplicableSectionEntry[] {
+export function proceduralProvisionsForBailType(
+  bailType: string,
+  framework: LegalFramework,
+  bailCourtLevel: BailCourtLevel = "UNSPECIFIED",
+): ApplicableSectionEntry[] {
   const isAnticipatory = bailType.toLowerCase().includes("anticipatory") || bailType.toLowerCase().includes("438") || bailType.toLowerCase().includes("482");
   if (framework === "UNSPECIFIED" || framework === "MIXED_LEGACY") return [unresolvedProceduralEntry(framework, bailType)];
 
@@ -153,7 +158,43 @@ export function proceduralProvisionsForBailType(bailType: string, framework: Leg
     }];
   }
 
-  if (framework === "CURRENT_BNS_BNSS") return [unresolvedProceduralEntry(framework, bailType)];
+  if (framework === "CURRENT_BNS_BNSS") {
+    if (bailCourtLevel === "MAGISTRATE") {
+      return [{
+        code: "BNSS 480",
+        title: "Magistrate bail in non-bailable offences",
+        relevance: "Procedural provision — derived from the declared bail type and court level, not an offence section",
+        source: "procedural",
+      }];
+    }
+    if (bailCourtLevel === "SESSIONS" || bailCourtLevel === "HIGH_COURT") {
+      return [{
+        code: "BNSS 483",
+        title: "Sessions Court / High Court bail",
+        relevance: "Procedural provision — derived from the declared bail type and court level, not an offence section",
+        source: "procedural",
+      }];
+    }
+    return [unresolvedProceduralEntry(framework, bailType)];
+  }
+
+  if (bailCourtLevel === "MAGISTRATE") {
+    return [{
+      code: "CrPC 437",
+      title: "Magistrate bail in non-bailable offences",
+      relevance: "Procedural provision — derived from the declared bail type and court level, not an offence section",
+      source: "procedural",
+    }];
+  }
+
+  if (bailCourtLevel === "SESSIONS" || bailCourtLevel === "HIGH_COURT") {
+    return [{
+      code: "CrPC 439",
+      title: "Sessions Court / High Court bail",
+      relevance: "Procedural provision — derived from the declared bail type and court level, not an offence section",
+      source: "procedural",
+    }];
+  }
 
   return [
     {
@@ -183,13 +224,16 @@ function suppliedRelevance(section: ParsedSection): string {
 export function mergeApplicableSections(options: {
   parsed: ParsedSection[];
   bailType: string;
-  framework?: LegalFramework;
+  framework: LegalFramework;
+  bailCourtLevel?: BailCourtLevel;
   llmSections: unknown[];
 }): ApplicableSectionEntry[] {
-  const framework = options.framework ?? "LEGACY_IPC_CRPC";
+  const framework = options.framework;
   const suppliedKeys = new Set(options.parsed.map((section) => `${section.statute}:${section.code}`));
   const suppliedEntries = options.parsed.map((section) => ({ code: section.display, title: section.display, relevance: suppliedRelevance(section), source: "supplied" as const }));
-  const procedural = proceduralProvisionsForBailType(options.bailType, framework).filter((entry) => {
+  const hasExplicitProceduralStatute = options.parsed.some((section) => section.statute === "CRPC" || section.statute === "BNSS");
+  const procedural = proceduralProvisionsForBailType(options.bailType, framework, options.bailCourtLevel).filter((entry) => {
+    if (framework === "MIXED_LEGACY" && hasExplicitProceduralStatute && entry.source === "unresolved") return false;
     const comparable = normalizeComparable(entry.code);
     return !suppliedKeys.has(`${comparable.statute}:${comparable.code}`);
   });

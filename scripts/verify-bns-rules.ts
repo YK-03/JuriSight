@@ -58,7 +58,7 @@ const unspecifiedBns = evaluate([bns("103")], "UNSPECIFIED");
 const bareCurrent = evaluate(["103"], "CURRENT_BNS_BNSS");
 const ipcLegacy = evaluate(["IPC 302"], "LEGACY_IPC_CRPC");
 const ipcCurrent = evaluate(["IPC 302"], "CURRENT_BNS_BNSS");
-check("Unsupported BNS remains unsupported", !unsupportedBns.offenseClass.supported && unsupportedBns.defaultBail.daysRequired === 60);
+check("Unsupported BNS remains unsupported", !unsupportedBns.offenseClass.supported && unsupportedBns.defaultBailThreshold === null && unsupportedBns.defaultBail.eligible === null);
 check("BNS 103 under unspecified remains unsupported", !unspecifiedBns.offenseClass.supported && unspecifiedBns.offenseClass.primarySection === "");
 check("Bare 103 under current remains unsupported", !bareCurrent.offenseClass.supported && bareCurrent.offenseClass.primarySection === "");
 check("IPC 302 retains its legacy result", ipcLegacy.offenseClass.supported && !ipcLegacy.offenseClass.bailable && ipcLegacy.offenseClass.severity === "severe");

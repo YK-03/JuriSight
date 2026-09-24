@@ -130,6 +130,7 @@ const llmShrunkOutput = ["IPC Section 420", "CrPC Section 438", "CrPC Section 43
 const merged = mergeApplicableSections({
   parsed: parsed.parsed,
   bailType: payload.bailType || "",
+  framework: "LEGACY_IPC_CRPC",
   llmSections: llmShrunkOutput,
 });
 
@@ -165,6 +166,7 @@ assert(
 const regularBailMerged = mergeApplicableSections({
   parsed: parsed.parsed,
   bailType: "Regular Bail (CrPC 437 / 439)",
+  framework: "LEGACY_IPC_CRPC",
   llmSections: llmShrunkOutput,
 });
 assert(
@@ -177,6 +179,7 @@ assert(
 const extraInferred = mergeApplicableSections({
   parsed: parsed.parsed,
   bailType: "Anticipatory Bail (CrPC 438)",
+  framework: "LEGACY_IPC_CRPC",
   llmSections: ["IPC 406", "IPC Section 420"],
 });
 assert(
