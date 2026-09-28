@@ -12,6 +12,7 @@ import { ApplicableSections } from "@/components/analysis/ApplicableSections";
 import { Precedents } from "@/components/analysis/Precedents";
 import { Recommendations } from "@/components/analysis/Recommendations";
 import { Button } from "@/components/ui/button";
+import { GenerateApplicationButton } from "@/components/analysis/GenerateApplicationButton";
 
 export default function CaseAnalysisPage() {
   const params = useParams<{ id: string }>();
@@ -124,6 +125,7 @@ export default function CaseAnalysisPage() {
           </Link>
         </Button>
         <div className="flex items-center gap-2">
+          <GenerateApplicationButton caseId={caseId} />
           <Button
             type="button"
             variant="secondary"

@@ -12,6 +12,7 @@ import { ApplicableSections } from "@/components/analysis/ApplicableSections";
 import { Precedents } from "@/components/analysis/Precedents";
 import { Recommendations } from "@/components/analysis/Recommendations";
 import { Button } from "@/components/ui/button";
+import { GenerateApplicationButton } from "@/components/analysis/GenerateApplicationButton";
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -80,6 +81,7 @@ export default function AnalysisPage() {
           </Link>
         </Button>
         <div className="flex items-center gap-2">
+          <GenerateApplicationButton caseId={data.caseId} />
           {data.caseId && (
             <Button
               type="button"
