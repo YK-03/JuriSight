@@ -1,5 +1,5 @@
 import type { Analysis } from "@prisma/client";
-import { buildSearchLink, normalizePrecedents, type Precedent } from "@/lib/precedents";
+import { normalizePrecedents, type Precedent } from "@/lib/precedents";
 
 export type AnalysisView = {
   id: string;
@@ -83,7 +83,7 @@ export function mapPrismaAnalysis(a: Analysis): AnalysisView {
     conditions: a.suggestedConditions,
     precedents: normalizedPrecedents.map((precedent, index) => ({
       ...precedent,
-      searchLink: precedent.searchLink || buildSearchLink(precedent.case),
+      ...(precedent.searchLink ? { searchLink: precedent.searchLink } : {}),
       similarity: precedentsRaw?.[index]?.similarity,
     })),
     biasWarning: a.biasWarning ?? undefined,

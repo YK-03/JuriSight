@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import db from "@/lib/db";
-import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
-import { buildFallbackPrecedents, normalizePrecedents, PrecedentsSchema } from "@/lib/precedents";
+import { PrecedentsSchema, type Precedent } from "@/lib/precedents";
+import { retrievePrecedents } from "@/lib/precedent-retrieval";
 import { getOrCreateUser } from "@/lib/user-sync";
 
 const BodySchema = z.object({ caseId: z.string().cuid() });
@@ -24,33 +24,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 });
     }
 
-    const storedPrecedents = normalizePrecedents(caseData.analysis?.precedents);
-    if (storedPrecedents.length > 0) {
-      return NextResponse.json({ precedents: storedPrecedents });
-    }
+    const retrieved = retrievePrecedents({
+      bailType: caseData.bailType,
+      offenseType: caseData.offenseType,
+      section: caseData.section,
+      accusedProfile: caseData.accusedProfile,
+      priorRecord: caseData.priorRecord,
+      cooperationLevel: caseData.cooperationLevel,
+      custodyDuration: caseData.custodyStatus ?? (caseData.timeServedDays ? `${caseData.timeServedDays} days` : ""),
+      custodyStatus: caseData.custodyStatus,
+      proceduralStage: caseData.proceduralStage,
+      previousBail: caseData.previousBail,
+      offenseDescription: caseData.offenseDescription,
+    });
 
-    const text = await generateAIResponse(
-      `You are an Indian legal research assistant. Return only valid JSON.\n\nFind 3 real Indian court cases similar to this bail case:\nSection: ${caseData.section}\nOffense: ${caseData.offenseType}\nProfile: ${caseData.accusedProfile}\n\nReturn a JSON array of exactly 3 objects:\n[\n  {\n    "case": "Real Indian case name",\n    "principle": "Concise legal principle",\n    "searchLink": "https://indiankanoon.org/search/?formInput=<url-encoded case name>"\n  }\n]\n\nFor each precedent:\n- Provide a real Indian case name (prefer Supreme Court / High Court)\n- Provide a concise legal principle\n- Generate a searchLink using:\n  https://indiankanoon.org/search/?formInput=<case name>\n- Use URL encoding (spaces -> %20)\n- Do NOT skip this field\n\nDo not return markdown or extra text.`
-    );
-
-    const parsed = extractJsonBlock(text);
-    const rawList = Array.isArray(parsed)
-      ? parsed
-      : parsed && typeof parsed === "object" && Array.isArray((parsed as any).precedents)
-      ? (parsed as any).precedents
-      : parsed && typeof parsed === "object" && Array.isArray((parsed as any).cases)
-      ? (parsed as any).cases
-      : [];
-
-    const precedents = normalizePrecedents(rawList);
-    const fallbackPrecedents = buildFallbackPrecedents(rawList);
-    const safePrecedents = PrecedentsSchema.parse(
-      precedents.length > 0 ? precedents : fallbackPrecedents,
-    );
-
-    if (safePrecedents.length === 0) {
-      throw new Error("No usable precedents in model response");
-    }
+    const precedents: Precedent[] = retrieved.map((precedent) => ({
+      id: precedent.id,
+      case: `${precedent.caseName} (${precedent.year})`,
+      principle: precedent.principle,
+      ...(precedent.sourceUrl ? { searchLink: precedent.sourceUrl } : {}),
+      category: precedent.category,
+      tags: precedent.tags,
+      bailPosture: precedent.bailPosture,
+      proceduralStage: precedent.proceduralStage,
+      provenance: precedent.provenance,
+    }));
+    const safePrecedents = PrecedentsSchema.parse(precedents);
 
     if (caseData.analysis) {
       await db.analysis.update({ where: { caseId }, data: { precedents: safePrecedents } });

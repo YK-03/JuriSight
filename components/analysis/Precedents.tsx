@@ -1,4 +1,4 @@
-import { buildSearchLink, normalizePrecedents, type Precedent } from "@/lib/precedents";
+import { normalizePrecedents, type Precedent } from "@/lib/precedents";
 import { Card, CardContent } from "@/components/ui/card";
 
 type PrecedentsProps = {
@@ -8,7 +8,6 @@ type PrecedentsProps = {
 export function Precedents({ precedents }: PrecedentsProps) {
   const safePrecedents = normalizePrecedents(precedents).map((precedent) => ({
     ...precedent,
-    searchLink: precedent.searchLink || buildSearchLink(precedent.case),
   }));
 
   return (
@@ -26,22 +25,23 @@ export function Precedents({ precedents }: PrecedentsProps) {
               className="mb-3 flex flex-col gap-1.5 border-b border-border/40 pb-3 last:mb-0 last:border-0 last:pb-0"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <a
+                {precedent.searchLink ? <a
                   href={precedent.searchLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm font-medium text-text-primary underline decoration-accent/40 underline-offset-4 transition hover:text-accent"
                 >
                   {precedent.case}
-                </a>
-                <a
+                </a> : <span className="text-sm font-medium text-text-primary">{precedent.case}</span>}
+                {precedent.searchLink ? <a
                   href={precedent.searchLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-xs text-accent transition hover:bg-accent/20"
                 >
                   View Source
-                </a>
+                </a> : null}
+                {precedent.provenance === "curated" ? <span className="text-xs text-text-secondary">Sourced</span> : precedent.provenance === "ai_suggested" ? <span className="text-xs text-text-secondary">AI Suggested</span> : null}
               </div>
               <p className="mt-1 text-xs leading-relaxed text-text-secondary">
                 {precedent.principle}

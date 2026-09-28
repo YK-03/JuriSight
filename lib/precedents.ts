@@ -3,15 +3,31 @@ import { z } from "zod";
 export type Precedent = {
   case: string;
   principle: string;
-  searchLink: string;
+  searchLink?: string;
   appliedTo?: string;
+  relevance?: string;
+  id?: string;
+  year?: number;
+  category?: string[];
+  tags?: string[];
+  bailPosture?: string;
+  proceduralStage?: string[];
+  provenance?: "curated" | "ai_suggested";
 };
 
 export const PrecedentSchema = z.object({
   case: z.string().trim().min(1, "Missing case"),
   principle: z.string().trim().min(1, "Missing principle"),
-  searchLink: z.string().trim().optional().default(""),
+  searchLink: z.string().trim().optional(),
   appliedTo: z.string().trim().optional(),
+  relevance: z.string().trim().optional(),
+  id: z.string().trim().optional(),
+  year: z.number().int().optional(),
+  category: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  bailPosture: z.string().trim().optional(),
+  proceduralStage: z.array(z.string()).optional(),
+  provenance: z.enum(["curated", "ai_suggested"]).optional(),
 });
 
 export const PrecedentsSchema = z.array(PrecedentSchema);
@@ -54,12 +70,32 @@ export function normalizePrecedentEntry(input: unknown): Precedent | null {
 
   const searchLink = coerceCaseName(record.searchLink);
   const appliedTo = coerceAppliedTo(record.appliedTo);
+  const relevance = coercePrinciple(record.relevance);
+  const id = typeof record.id === "string" ? record.id.trim() : "";
+  const year = typeof record.year === "number" && Number.isInteger(record.year) ? record.year : undefined;
+  const category = Array.isArray(record.category) ? record.category.filter((item): item is string => typeof item === "string") : undefined;
+  const tags = Array.isArray(record.tags) ? record.tags.filter((item): item is string => typeof item === "string") : undefined;
+  const bailPosture = typeof record.bailPosture === "string" ? record.bailPosture.trim() : "";
+  const proceduralStage = Array.isArray(record.proceduralStage)
+    ? record.proceduralStage.filter((item): item is string => typeof item === "string")
+    : undefined;
+  const provenance = record.provenance === "curated" || record.provenance === "ai_suggested"
+    ? record.provenance
+    : undefined;
 
   return withAppliedTo(
     {
       case: caseName,
       principle,
-      searchLink: searchLink.includes("indiankanoon") ? searchLink : buildSearchLink(caseName),
+      ...(searchLink.includes("indiankanoon") ? { searchLink } : {}),
+      ...(relevance ? { relevance } : {}),
+      ...(provenance ? { provenance } : {}),
+      ...(id ? { id } : {}),
+      ...(year !== undefined ? { year } : {}),
+      ...(category ? { category } : {}),
+      ...(tags ? { tags } : {}),
+      ...(bailPosture ? { bailPosture } : {}),
+      ...(proceduralStage ? { proceduralStage } : {}),
     },
     appliedTo,
   );
@@ -78,9 +114,15 @@ export function normalizePrecedents(input: unknown): Precedent[] {
         {
           case: p.case,
           principle: p.principle,
-          searchLink: p.searchLink && p.searchLink.includes("indiankanoon")
-            ? p.searchLink
-            : buildSearchLink(p.case),
+          ...(p.searchLink ? { searchLink: p.searchLink } : {}),
+          ...(p.relevance ? { relevance: p.relevance } : {}),
+          ...(p.provenance ? { provenance: p.provenance } : {}),
+          ...(p.id ? { id: p.id } : {}),
+          ...(p.year !== undefined ? { year: p.year } : {}),
+          ...(p.category ? { category: p.category } : {}),
+          ...(p.tags ? { tags: p.tags } : {}),
+          ...(p.bailPosture ? { bailPosture: p.bailPosture } : {}),
+          ...(p.proceduralStage ? { proceduralStage: p.proceduralStage } : {}),
         },
         p.appliedTo ?? "",
       ),

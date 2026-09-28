@@ -9,7 +9,8 @@ import {
 } from "@prisma/client";
 import { AnalyzeRequest, CaseAnalysis } from "@/lib/analysis-types";
 import db from "@/lib/db";
-import { buildFallbackPrecedents, normalizePrecedents } from "@/lib/precedents";
+import { type Precedent } from "@/lib/precedents";
+import { retrievePrecedents } from "@/lib/precedent-retrieval";
 import { getOrCreateUser } from "@/lib/user-sync";
 import { runLegalRules, LegalRuleInput, type LegalRuleOutput } from "@/lib/legal-rules";
 import {
@@ -561,6 +562,27 @@ export async function POST(req: Request) {
       `\nCase Narrative:\n${whatHappened}`,
     ].join("\n");
 
+    const retrievedPrecedents = retrievePrecedents(
+      {
+        bailType: resolvedBailType,
+        offenseType: resolvedOffenseType,
+        section: resolvedSections,
+        accusedProfile: resolvedAccusedProfile,
+        priorRecord: body.priorRecord ?? caseRecord?.priorRecord,
+        cooperationLevel: resolvedCooperation,
+        custodyDuration: resolvedCustodyStr,
+        custodyStatus: caseRecord?.custodyStatus,
+        proceduralStage: resolvedProceduralStage,
+        previousBail: resolvedPreviousBail,
+        offenseDescription: whatHappened,
+      },
+      structuredCaseFacts,
+    );
+
+    const precedentGrounding = retrievedPrecedents.length > 0
+      ? JSON.stringify(retrievedPrecedents.map(({ score, ...precedent }) => precedent), null, 2)
+      : "No curated precedent matched the supplied facts. Return an empty precedents array.";
+
     const finalPrompt = `You are a senior criminal defense lawyer in India specializing in bail law.
 
 Your task is to analyze the case and return a STRICT JSON response.
@@ -588,35 +610,12 @@ OUTPUT FORMAT (MANDATORY)
   "legalReasoning": "detailed paragraph explaining how the supplied case facts and deterministic legal findings support the qualitative assessment",
   "applicableSections": ["IPC Section 468"],
   "precedents": [
-    {
-      "case": "Sanjay Chandra v. CBI (2012)",
-      "principle": "Bail should not be denied merely due to seriousness of allegations if trial will take time.",
-      "appliedTo": "<specific fact from case e.g. alleged diversion of ₹X Crores>",
-      "relevance": "<explicit connection: this fact → this principle → bail outcome>"
-    },
-    {
-      "case": "State of Rajasthan v. Balchand (1977)",
-      "principle": "Bail is the rule and jail is the exception",
-      "appliedTo": "<specific fact from case e.g. no prior criminal record>",
-      "relevance": "<explicit connection: this fact → this principle → bail outcome>"
-    },
-    {
-      "case": "<third case relevant to this specific case type>",
-      "principle": "<1-line principle>",
-      "appliedTo": "<specific fact from this case>",
-      "relevance": "<explicit connection>"
-    }
+    { "id": "dataset id", "appliedTo": "specific supplied fact", "relevance": "fact → curated principle → bail outcome" }
   ],
   "recommendations": ["specific actionable recommendation"]
 }
 
-For each precedent:
-- Provide a real Indian case name (prefer Supreme Court / High Court)
-- Provide a concise legal principle
-- Generate a searchLink using:
-  https://indiankanoon.org/search/?formInput=<case name>
-- Use URL encoding (spaces -> %20)
-- Do NOT skip this field
+Precedent names, years, principles, categories, tags, provenance, and source URLs are authoritative dataset fields. Do not generate or alter them.
 
 -------------------------------------
 FACT EXTRACTION RULES (CRITICAL)
@@ -645,31 +644,23 @@ ${formatAuthoritativeSectionsBlock(suppliedSectionLabels)}
 - In applicableSections, you may list additional possible/unverified statutory issues only.
   Do not treat procedural bail provisions as offence sections.
 
-- PRECEDENTS — return EXACTLY 3, structured as objects:
+- PRECEDENTS — use ONLY the curated records supplied below. Return one object per relevant supplied record, or [] when none are supplied:
 
   "precedents": [
     {
-      "case": "Case Name v. Party (Year)",
-      "principle": "1-line legal principle established",
+      "id": "exact curated dataset id",
       "appliedTo": "specific fact from THIS case input (e.g. alleged diversion of ₹2 Crores)",
       "relevance": "explicit connection: fact → legal principle → why it supports or restricts bail here"
     }
   ]
 
-- Select precedents DETERMINISTICALLY by case type:
-  Financial / economic offence:
-    1. Sanjay Chandra v. CBI (2012) — bail in economic offences
-    2. Pepsi Foods Ltd. v. Special Judicial Magistrate (1998) — civil dispute vs criminal intent
-    3. Arnesh Kumar v. State of Bihar (2014) — investigation vs personal liberty
-
-  Theft / minor offence:
-    1. State of Rajasthan v. Balchand (1977) — bail is rule, jail is exception
-    2. Hussainara Khatoon v. State of Bihar (1979) — presumption of innocence, speedy trial
-    3. Dataram Singh v. State of Uttar Pradesh (2018) — bail for first-time offenders
-
+- The backend has already selected the records deterministically. Do not add, rename, paraphrase, or cite any record not present below.
+- "id" MUST exactly match one supplied curated dataset id.
 - "appliedTo" MUST directly name a fact from the input (not generic)
 - "relevance" MUST explicitly connect: that fact → the principle → bail outcome
-- Do NOT invent cases. Do NOT randomize. Same facts → same precedents.
+
+CURATED PRECEDENTS (AUTHORITATIVE; DO NOT MODIFY):
+${precedentGrounding}
 
 -------------------------------------
 QUALITY RULES
@@ -768,17 +759,34 @@ ${structuredCaseFacts}
       });
 
 
-      const rawPrecedents = Array.isArray(parsed.precedents)
+      const rawPrecedents: Array<{ id?: unknown; appliedTo?: unknown; relevance?: unknown }> = Array.isArray(parsed.precedents)
         ? parsed.precedents
         : parsed.precedents && typeof parsed.precedents === "object" && Array.isArray(parsed.precedents.cases)
         ? parsed.precedents.cases
         : [];
-      const normalizedPrecedents = normalizePrecedents(rawPrecedents);
-      const fallbackPrecedents = buildFallbackPrecedents(rawPrecedents);
-      const precedents =
-        normalizedPrecedents.length > 0
-          ? normalizedPrecedents
-          : fallbackPrecedents;
+      const explanationsById = new Map(
+        rawPrecedents
+          .filter((entry) => typeof entry?.id === "string")
+          .map((entry) => [entry.id as string, entry]),
+      );
+      const precedents: Precedent[] = retrievedPrecedents.map((precedent) => {
+        const explanation = explanationsById.get(precedent.id);
+        const appliedTo = typeof explanation?.appliedTo === "string" ? explanation.appliedTo.trim() : "";
+        const relevance = typeof explanation?.relevance === "string" ? explanation.relevance.trim() : "";
+        return {
+          id: precedent.id,
+          case: `${precedent.caseName} (${precedent.year})`,
+          principle: precedent.principle,
+          ...(precedent.sourceUrl ? { searchLink: precedent.sourceUrl } : {}),
+          category: precedent.category,
+          tags: precedent.tags,
+          bailPosture: precedent.bailPosture,
+          proceduralStage: precedent.proceduralStage,
+          provenance: precedent.provenance,
+          ...(appliedTo ? { appliedTo } : {}),
+          ...(relevance ? { relevance } : {}),
+        };
+      });
 
       const isCooperative =
         body.cooperationLevel?.toLowerCase().includes("cooperat") ||
