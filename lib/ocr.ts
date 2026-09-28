@@ -6,335 +6,212 @@ type OcrResult = {
   pageCount: number;
 };
 
-type PdfObject = {
-  id: number;
-  offset: number;
-  body: string;
-};
-
 const OCR_LANGUAGES = "eng+hin";
 
-/**
- * Parse the traditional PDF xref table and map:
- *
- *   object ID -> byte offset
- *
- * We use these offsets instead of searching the raw PDF text because
- * JPEG streams can contain byte sequences that look like PDF objects.
- */
-function parseXref(buffer: Buffer): Map<number, number> {
-  const pdfText = buffer.toString("latin1");
+type PdfObject = {
+  id: number;
+  body: string;
+  start: number;
+  end: number;
+};
 
-  const xrefPos = pdfText.lastIndexOf("\nxref");
+function parsePdfObjects(buffer: Buffer): Map<number, PdfObject> {
+  const text = buffer.toString("latin1");
+  const objects = new Map<number, PdfObject>();
 
-  if (xrefPos === -1) {
-    throw new Error("Could not find PDF xref table");
+  const regex =
+    /(?:^|\n)(\d+)\s+0\s+obj\s*\n([\s\S]*?)\nendobj\b/g;
+
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const id = Number(match[1]);
+    const body = match[2];
+
+    objects.set(id, {
+      id,
+      body,
+      start: match.index,
+      end: regex.lastIndex,
+    });
   }
 
-  const trailerPos = pdfText.indexOf("trailer", xrefPos);
-
-  if (trailerPos === -1) {
-    throw new Error("Could not find PDF trailer");
-  }
-
-  const xrefText = pdfText.slice(xrefPos + 5, trailerPos);
-
-  const offsets = new Map<number, number>();
-
-  const lines = xrefText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  let index = 0;
-
-  while (index < lines.length) {
-    const headerMatch = lines[index].match(/^(\d+)\s+(\d+)$/);
-
-    if (!headerMatch) {
-      index += 1;
-      continue;
-    }
-
-    const startObjectId = Number(headerMatch[1]);
-    const objectCount = Number(headerMatch[2]);
-
-    index += 1;
-
-    for (
-      let objectIndex = 0;
-      objectIndex < objectCount && index < lines.length;
-      objectIndex += 1, index += 1
-    ) {
-      const entryMatch = lines[index].match(
-        /^(\d{10})\s+\d+\s+([nf])/
-      );
-
-      if (!entryMatch) {
-        continue;
-      }
-
-      if (entryMatch[2] === "n") {
-        offsets.set(
-          startObjectId + objectIndex,
-          Number(entryMatch[1])
-        );
-      }
-    }
-  }
-
-  return offsets;
+  return objects;
 }
 
-/**
- * Read one PDF object using the offset supplied by the xref table.
- */
-function readObject(
-  buffer: Buffer,
-  offsets: Map<number, number>,
-  objectId: number
-): PdfObject {
-  const offset = offsets.get(objectId);
+function getPageObjectIds(objects: Map<number, PdfObject>): number[] {
+  const pages: number[] = [];
 
-  if (offset === undefined) {
-    throw new Error(`No xref entry for object ${objectId}`);
+  for (const object of objects.values()) {
+    if (/\/Type\s*\/Page\b/.test(object.body)) {
+      pages.push(object.id);
+    }
   }
 
-  const pdfText = buffer.toString("latin1");
+  pages.sort((a, b) => a - b);
 
-  const endObjectIndex = pdfText.indexOf(
-    "\nendobj",
-    offset
+  return pages;
+}
+
+function getReference(body: string, key: string): number | null {
+  const regex = new RegExp(
+    `/${key}\\s+(\\d+)\\s+0\\s+R`
   );
 
-  if (endObjectIndex === -1) {
-    throw new Error(
-      `Could not find endobj for object ${objectId}`
-    );
-  }
+  const match = body.match(regex);
 
-  const endOffset = endObjectIndex + "\nendobj".length;
-
-  return {
-    id: objectId,
-    offset,
-    body: pdfText.slice(offset, endOffset),
-  };
+  return match ? Number(match[1]) : null;
 }
 
-/**
- * Find every actual PDF /Page object using the xref table.
- *
- * IMPORTANT:
- * We do NOT search the entire raw PDF with a regex.
- * Binary JPEG streams can contain text that looks like PDF objects.
- */
-function getPageObjectIds(
-  buffer: Buffer,
-  offsets: Map<number, number>
-): number[] {
-  const pageObjectIds: number[] = [];
-
-  for (const objectId of offsets.keys()) {
-    try {
-      const object = readObject(
-        buffer,
-        offsets,
-        objectId
-      );
-
-      if (/\/Type\s*\/Page\b/.test(object.body)) {
-        pageObjectIds.push(objectId);
-      }
-    } catch {
-      // Ignore malformed or unreadable PDF objects.
-    }
-  }
-
-  if (pageObjectIds.length === 0) {
-    throw new Error("Could not find PDF page objects");
-  }
-
-  console.log(
-    "[OCR] PDF page objects:",
-    pageObjectIds
-  );
-
-  return pageObjectIds;
-}
-
-/**
- * Get JPEG XObject references belonging to one PDF page.
- *
- * The page object and Resources object are both resolved
- * through the xref table.
- */
-function getPageImageObjectIds(
-  buffer: Buffer,
-  offsets: Map<number, number>,
+function getImageObjectIds(
+  objects: Map<number, PdfObject>,
   pageObjectId: number
 ): number[] {
-  const pageObject = readObject(
-    buffer,
-    offsets,
-    pageObjectId
-  ).body;
+  const page = objects.get(pageObjectId);
 
-  const resourcesMatch = pageObject.match(
-    /\/Resources\s+(\d+)\s+0\s+R/
-  );
-
-  if (!resourcesMatch) {
+  if (!page) {
     throw new Error(
-      `Could not find Resources for page object ${pageObjectId}`
+      `Could not find page object ${pageObjectId}`
     );
   }
 
-  const resourcesId = Number(resourcesMatch[1]);
+  const resourcesId = getReference(page.body, "Resources");
 
-  const resourcesObject = readObject(
-    buffer,
-    offsets,
-    resourcesId
-  ).body;
+  if (resourcesId === null) {
+    throw new Error(
+      `Could not find Resources for page ${pageObjectId}`
+    );
+  }
+
+  const resources = objects.get(resourcesId);
+
+  if (!resources) {
+    throw new Error(
+      `Could not find Resources object ${resourcesId}`
+    );
+  }
 
   const imageIds: number[] = [];
 
+  /*
+   * Resource dictionaries contain entries such as:
+   *
+   * /Image1 4 0 R
+   * /Image2 5 0 R
+   *
+   * Some of these image references are shared between pages.
+   */
   const imageRegex =
     /\/Image\d+\s+(\d+)\s+0\s+R/g;
 
-  let imageMatch: RegExpExecArray | null;
+  let match: RegExpExecArray | null;
 
-  while (
-    (imageMatch = imageRegex.exec(resourcesObject)) !== null
-  ) {
-    imageIds.push(Number(imageMatch[1]));
+  while ((match = imageRegex.exec(resources.body)) !== null) {
+    imageIds.push(Number(match[1]));
   }
-
-  console.log(
-    `[OCR] Page ${pageObjectId}: Resources ${resourcesId}, images ${imageIds.length}`
-  );
 
   return imageIds;
 }
 
-/**
- * Extract the JPEG stream from a PDF image object.
- */
 function extractJpegFromObject(
   buffer: Buffer,
-  offsets: Map<number, number>,
-  objectId: number
-): Buffer {
-  const object = readObject(
-    buffer,
-    offsets,
-    objectId
+  object: PdfObject
+): Buffer | null {
+  /*
+   * JPEG images use /DCTDecode.
+   */
+  if (!/\/Filter\s*\/DCTDecode\b/.test(object.body)) {
+    return null;
+  }
+
+  const objectStart =
+    object.start;
+
+  const streamRelative =
+    object.body.indexOf("stream");
+
+  if (streamRelative === -1) {
+    return null;
+  }
+
+  /*
+   * Locate the actual JPEG SOI marker after "stream".
+   */
+  const searchStart =
+    objectStart +
+    object.body.indexOf("stream");
+
+  const soi = buffer.indexOf(
+    Buffer.from([0xff, 0xd8]),
+    searchStart
   );
 
-  if (!/\/Filter\s*\/DCTDecode/.test(object.body)) {
-    throw new Error(
-      `Object ${objectId} is not a JPEG image`
-    );
+  if (soi === -1 || soi >= object.end) {
+    return null;
   }
 
-  const streamMarker = object.body.indexOf("stream");
-
-  if (streamMarker === -1) {
-    throw new Error(
-      `No stream found for image ${objectId}`
-    );
-  }
-
-  let jpegStart =
-    object.offset +
-    streamMarker +
-    "stream".length;
-
-  // Skip the newline immediately following "stream".
-  if (
-    buffer[jpegStart] === 0x0d &&
-    buffer[jpegStart + 1] === 0x0a
-  ) {
-    jpegStart += 2;
-  } else if (
-    buffer[jpegStart] === 0x0a ||
-    buffer[jpegStart] === 0x0d
-  ) {
-    jpegStart += 1;
-  }
-
-  const jpegEnd = buffer.indexOf(
+  const eoi = buffer.indexOf(
     Buffer.from([0xff, 0xd9]),
-    jpegStart
+    soi + 2
   );
 
-  if (jpegEnd === -1) {
-    throw new Error(
-      `JPEG end marker not found for image ${objectId}`
-    );
+  if (eoi === -1 || eoi >= object.end) {
+    return null;
   }
 
-  return buffer.subarray(
-    jpegStart,
-    jpegEnd + 2
-  );
+  return buffer.subarray(soi, eoi + 2);
 }
 
-/**
- * Reconstruct a complete page from its horizontal JPEG strips.
- */
 async function buildPage(
-  buffer: Buffer,
-  offsets: Map<number, number>,
-  imageObjectIds: number[]
+  strips: Buffer[]
 ): Promise<Buffer> {
-  if (imageObjectIds.length === 0) {
+  if (strips.length === 0) {
     throw new Error(
-      "Cannot build page: no JPEG strips found"
+      "Cannot build OCR page: no JPEG strips found"
     );
   }
 
-  const strips = imageObjectIds.map((objectId) =>
-    extractJpegFromObject(
-      buffer,
-      offsets,
-      objectId
-    )
-  );
+  /*
+   * Every strip in this PDF is 2305 pixels wide and
+   * approximately 37 pixels high.
+   *
+   * We nevertheless read dimensions dynamically.
+   */
 
-  const metadata = await Promise.all(
+  const metadata = await sharp(strips[0]).metadata();
+
+  if (!metadata.width || !metadata.height) {
+    throw new Error(
+      "Could not determine JPEG strip dimensions"
+    );
+  }
+
+  const width = metadata.width;
+
+  /*
+   * JPEG strips can theoretically have different heights,
+   * so calculate the total height rather than assuming 37.
+   */
+  const metas = await Promise.all(
     strips.map((strip) => sharp(strip).metadata())
   );
 
-  const width = metadata[0]?.width;
-
-  if (!width) {
-    throw new Error(
-      "Could not determine strip width"
-    );
-  }
-
-  const totalHeight = metadata.reduce(
-    (sum, item) => sum + (item.height ?? 0),
+  const totalHeight = metas.reduce(
+    (sum, meta) =>
+      sum + (meta.height ?? metadata.height!),
     0
   );
-
-  if (!totalHeight) {
-    throw new Error(
-      "Could not determine page height"
-    );
-  }
 
   const composites: sharp.OverlayOptions[] = [];
 
   let top = 0;
 
-  for (let index = 0; index < strips.length; index += 1) {
-    const height = metadata[index]?.height ?? 0;
+  for (let i = 0; i < strips.length; i++) {
+    const height =
+      metas[i].height ?? metadata.height;
 
     composites.push({
-      input: strips[index],
+      input: strips[i],
       left: 0,
       top,
     });
@@ -355,14 +232,6 @@ async function buildPage(
     },
   })
     .composite(composites)
-    .resize({
-      width: width * 2,
-      height: totalHeight * 2,
-      kernel: sharp.kernel.lanczos3,
-    })
-    .grayscale()
-    .normalize()
-    .sharpen()
     .png()
     .toBuffer();
 }
@@ -370,84 +239,150 @@ async function buildPage(
 export async function ocrScannedPdf(
   buffer: Buffer
 ): Promise<OcrResult> {
-  const offsets = parseXref(buffer);
+  console.log("[OCR] Parsing PDF objects...");
 
-  const pageObjectIds = getPageObjectIds(
-    buffer,
-    offsets
+  const objects = parsePdfObjects(buffer);
+
+  console.log(
+    `[OCR] Parsed ${objects.size} PDF objects`
   );
+
+  const pageObjectIds =
+    getPageObjectIds(objects);
+
+  if (pageObjectIds.length === 0) {
+    throw new Error(
+      "Could not find any PDF page objects"
+    );
+  }
 
   console.log(
     `[OCR] PDF pages found: ${pageObjectIds.length}`
   );
 
-  const pages = pageObjectIds.map((pageObjectId) =>
-    getPageImageObjectIds(
-      buffer,
-      offsets,
-      pageObjectId
-    )
-  );
+  const pages: Buffer[][] = [];
 
-  console.log(
-    `[OCR] Image distribution: [${pages
-      .map((page) => page.length)
-      .join(", ")}]`
-  );
+  for (
+    let pageIndex = 0;
+    pageIndex < pageObjectIds.length;
+    pageIndex++
+  ) {
+    const pageObjectId =
+      pageObjectIds[pageIndex];
 
-  const totalImages = pages.reduce(
-    (sum, page) => sum + page.length,
-    0
-  );
-
-  console.log(
-    `[OCR] Total page images: ${totalImages}`
-  );
-
-  if (pages.some((page) => page.length === 0)) {
-    throw new Error(
-      "One or more PDF pages contain no JPEG images"
+    console.log(
+      `[OCR] Mapping page ${pageIndex + 1}: object ${pageObjectId}`
     );
+
+    const imageObjectIds =
+      getImageObjectIds(
+        objects,
+        pageObjectId
+      );
+
+    console.log(
+      `[OCR] Page ${pageIndex + 1}: ${imageObjectIds.length} image references`
+    );
+
+    const pageImages: Buffer[] = [];
+
+    for (const imageObjectId of imageObjectIds) {
+      const imageObject =
+        objects.get(imageObjectId);
+
+      if (!imageObject) {
+        console.warn(
+          `[OCR] Missing image object ${imageObjectId}`
+        );
+        continue;
+      }
+
+      const jpeg =
+        extractJpegFromObject(
+          buffer,
+          imageObject
+        );
+
+      if (jpeg) {
+        pageImages.push(jpeg);
+      }
+    }
+
+    if (pageImages.length === 0) {
+      throw new Error(
+        `No JPEG images found for page ${pageIndex + 1}`
+      );
+    }
+
+    console.log(
+      `[OCR] Page ${pageIndex + 1}: ${pageImages.length} JPEG strips extracted`
+    );
+
+    pages.push(pageImages);
   }
 
-  const worker = await createWorker(
-    OCR_LANGUAGES
+  console.log(
+    `[OCR] Successfully mapped ${pages.length} pages`
   );
+
+  console.log("[OCR] Starting Tesseract...");
+
+  const worker =
+    await createWorker(OCR_LANGUAGES);
 
   try {
     const pageTexts: string[] = [];
 
-    for (let index = 0; index < pages.length; index += 1) {
-      const pageNumber = index + 1;
-      const imageCount = pages[index].length;
-
+    for (
+      let i = 0;
+      i < pages.length;
+      i++
+    ) {
       console.log(
-        `\n[OCR] Processing page ${pageNumber}/${pages.length} (${imageCount} strips)`
+        `\n[OCR] Processing page ${i + 1}/${pages.length}...`
       );
 
-      const pageImage = await buildPage(
-        buffer,
-        offsets,
-        pages[index]
-      );
+      const pageImage =
+        await buildPage(pages[i]);
 
-      console.log(
-        `[OCR] Page ${pageNumber} reconstructed`
-      );
+      /*
+       * Save reconstructed pages temporarily when debugging.
+       * This lets us visually verify that the strip ordering
+       * is correct before blaming Tesseract.
+       */
+      const debugPath =
+        `ocr-page-${i + 1}.png`;
 
-      const result = await worker.recognize(
+      const fs =
+        await import("fs/promises");
+
+      await fs.writeFile(
+        debugPath,
         pageImage
       );
 
-      pageTexts.push(result.data.text);
+      console.log(
+        `[OCR] Reconstructed page saved: ${debugPath}`
+      );
+
+      const result =
+        await worker.recognize(
+          pageImage
+        );
+
+      pageTexts.push(
+        result.data.text
+      );
 
       console.log(
-        `[OCR] Page ${pageNumber} complete: ${result.data.text.length} chars`
+        `[OCR] Page ${i + 1} complete: ${result.data.text.length} characters`
       );
     }
 
     return {
-      text: pageTexts.join("\n\n"),
+      text: pageTexts.join(
+        "\n\n================ PAGE BREAK ================\n\n"
+      ),
       pageCount: pages.length,
     };
   } finally {

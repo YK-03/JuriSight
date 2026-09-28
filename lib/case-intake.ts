@@ -107,6 +107,7 @@ export function buildCasePayload(values: IntakeFormState) {
     custodyStatus: values.custodyStatus.trim() || undefined,
     previousBail: values.previousBail.trim() || undefined,
     legalFramework: values.legalFramework,
+    // Used by /api/analyze for request-time procedural mapping; not persisted on Case.
     bailCourtLevel: values.bailType.startsWith("Regular Bail") ? values.bailCourtLevel || undefined : undefined,
     specialAct: undefined,
   };

@@ -125,7 +125,7 @@ export default function CaseAnalysisPage() {
           </Link>
         </Button>
         <div className="flex items-center gap-2">
-          <GenerateApplicationButton caseId={caseId} />
+          <GenerateApplicationButton caseId={caseId || params.id} />
           <Button
             type="button"
             variant="secondary"

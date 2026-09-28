@@ -3,7 +3,6 @@ import { getOrCreateUser } from "@/lib/user-sync";
 import { z } from "zod";
 import db from "@/lib/db";
 import { LEGAL_FRAMEWORKS } from "@/lib/legal-framework";
-import { BAIL_COURT_LEVELS } from "@/lib/section-preservation";
 
 const CaseCreateSchema = z.object({
   title: z.string().min(2),
@@ -16,7 +15,6 @@ const CaseCreateSchema = z.object({
   cooperationLevel: z.string().min(1),
   jurisdiction: z.string().min(1),
   legalFramework: z.enum(LEGAL_FRAMEWORKS).optional(),
-  bailCourtLevel: z.enum(BAIL_COURT_LEVELS).optional().nullable(),
   specialAct: z.string().optional(),
   bailType: z.string().optional(),
   proceduralStage: z.string().optional(),
@@ -66,7 +64,6 @@ export async function POST(req: Request) {
         cooperationLevel: body.cooperationLevel,
         jurisdiction: body.jurisdiction,
         legalFramework: body.legalFramework,
-        bailCourtLevel: body.bailCourtLevel,
         specialAct: body.specialAct,
         bailType: body.bailType,
         proceduralStage: body.proceduralStage,

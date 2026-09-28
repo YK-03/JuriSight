@@ -35,15 +35,14 @@ model Case {
   dateOfArrest         DateTime?
   maximumSentenceYears Int?
   timeServedDays       Int?
-  bailType             String?
-  bailCourtLevel       String?
-  proceduralStage      String?
-  custodyStatus        String?
-  previousBail         String?
-  isPublic             Boolean       @default(true)
   status               CaseStatus    @default(PENDING)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+  isPublic             Boolean       @default(true)
+  bailType             String?
+  custodyStatus        String?
+  previousBail         String?
+  proceduralStage      String?
   analysis             Analysis?
   user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   chatSessions         ChatSession[]
@@ -95,7 +94,7 @@ model ChatSession {
   title     String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  case      Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  case      Case?     @relation(fields: [caseId], references: [id])
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  Message[]
 

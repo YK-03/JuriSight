@@ -181,21 +181,28 @@ function AnalyzeIntakeContent() {
     });
 
     try {
-      let caseId: string | null = null;
+      const caseResponse = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildCasePayload({ ...form, whatHappened: trimmedNarrative })),
+      });
+      const casePayload = (await caseResponse.json().catch(() => null)) as
+        | CreatedCaseResponse
+        | { error?: string }
+        | null;
 
-      try {
-        const caseResponse = await fetch("/api/cases", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildCasePayload({ ...form, whatHappened: trimmedNarrative })),
-        });
+      if (!caseResponse.ok) {
+        throw new Error(
+          (casePayload && "error" in casePayload && casePayload.error) ||
+            "Unable to save this case before analysis.",
+        );
+      }
 
-        if (caseResponse.ok) {
-          const createdCase: CreatedCaseResponse = await caseResponse.json();
-          caseId = typeof createdCase.id === "string" ? createdCase.id : null;
-        }
-      } catch {
-        caseId = null;
+      const caseId = casePayload && "id" in casePayload && typeof casePayload.id === "string"
+        ? casePayload.id
+        : "";
+      if (!caseId) {
+        throw new Error("Unable to save this case before analysis.");
       }
 
       const response = await fetch("/api/analyze", {
@@ -226,7 +233,7 @@ function AnalyzeIntakeContent() {
       );
       saveCaseHistoryEntry(form, data, caseId);
 
-      router.push("/dashboard/analysis");
+      router.push(`/dashboard/analysis/${caseId}`);
     } catch (submissionError) {
       setSubmitError(
         submissionError instanceof Error ? submissionError.message : "Unable to analyze this case right now.",

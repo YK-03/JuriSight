@@ -424,7 +424,6 @@ export async function POST(req: Request) {
           maximumSentenceYears: true,
           timeServedDays: true,
           bailType: true,
-          bailCourtLevel: true,
           proceduralStage: true,
           custodyStatus: true,
           previousBail: true,
@@ -494,7 +493,7 @@ export async function POST(req: Request) {
       caseRecord?.proceduralStage ||
       normalized.stage ||
       "Unknown";
-    const resolvedBailCourtLevel = resolveBailCourtLevel(body.bailCourtLevel, caseRecord?.bailCourtLevel);
+    const resolvedBailCourtLevel = resolveBailCourtLevel(body.bailCourtLevel, undefined);
 
     // Parse the supplied sections string into:
     //   ruleIdentities  → statute-qualified deterministic inputs
@@ -873,6 +872,10 @@ ${structuredCaseFacts}
         }
       } catch (persistenceError) {
         console.error("Analysis persistence failed:", persistenceError);
+        return NextResponse.json(
+          { success: false, error: "Analysis could not be saved to the case. Please try again." },
+          { status: 503 },
+        );
       }
     }
 
