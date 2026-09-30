@@ -38,6 +38,21 @@ interface BailStrategyResult {
   suretyRangeMin: number;
   suretyRangeMax: number;
   suretyLabel?: string;
+  authority?: "DETERMINISTIC" | "DETERMINISTIC_UNRESOLVED" | "DISCRETIONARY";
+  ruleSummary?: string;
+  discretionaryFactors?: string[];
+  deterministicFindings?: {
+    framework?: string;
+    primarySection?: string;
+    bailable?: boolean | null;
+    supported?: boolean;
+    severity?: string | null;
+    defaultBailEligible?: boolean | null;
+    defaultBailProvision?: string | null;
+    chargesheetFiled?: boolean;
+    specialActBar?: boolean;
+    isJuvenile?: boolean;
+  };
 }
 
 const INITIAL_FORM: BailStrategyRequestBody = {
@@ -469,10 +484,65 @@ function BailStrategyPageContent() {
                       (Indicative range based on similar cases; subject to court discretion)
                     </p>
                   </div>
+
+                  <div className="rounded-3xl border border-border/50 bg-bg-card p-5 shadow-panel">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+                        {result.authority === "DISCRETIONARY" ? "Discretionary Analysis" : "Authoritative Legal Basis"}
+                      </p>
+                      {result.authority ? (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                          result.authority === "DETERMINISTIC"
+                            ? "border border-accent/30 bg-accent/10 text-accent"
+                            : result.authority === "DISCRETIONARY"
+                            ? "border border-state-info/30 bg-state-info/10 text-state-info"
+                            : "border border-state-warning/30 bg-state-warning/10 text-state-warning"
+                        }`}>
+                          {result.authority === "DETERMINISTIC"
+                            ? "Deterministic statutory finding"
+                            : result.authority === "DISCRETIONARY"
+                            ? "Discretionary analysis"
+                            : "Unresolved statutory finding"}
+                        </span>
+                      ) : null}
+                    </div>
+                    {result.authority === "DISCRETIONARY" ? (
+                      <>
+                        <p className="mt-3 text-sm font-medium leading-6 text-text-primary">
+                          Regular bail is discretionary in this case. The following factors may be relevant to the court&apos;s assessment.
+                        </p>
+                        {result.discretionaryFactors && result.discretionaryFactors.length > 0 && (
+                          <ul className="mt-3 space-y-1.5">
+                            {result.discretionaryFactors.map((factor, idx) => (
+                              <li key={idx} className="flex gap-2 text-sm text-text-primary">
+                                <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-text-secondary opacity-60" />
+                                {factor}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <p className="mt-3 text-xs text-text-secondary opacity-80">
+                          (No statutory entitlement or bar established; Groq analysis below is contextual only)
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-3 text-sm font-medium leading-6 text-text-primary">
+                          {result.ruleSummary || (result.deterministicFindings?.supported ? "Evaluated against statutory bail provisions" : "Statutory classification unresolved by deterministic rules")}
+                        </p>
+                        <p className="mt-1 text-xs text-text-secondary opacity-80">
+                          (Legal eligibility established authoritatively by backend deterministic engine)
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
-                  <h3 className="text-lg font-semibold text-text-primary">Reasoning</h3>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="text-lg font-semibold text-text-primary">Reasoning</h3>
+                    <span className="text-xs text-text-secondary">AI Contextual Analysis (Groq)</span>
+                  </div>
                   <div className="mt-5 space-y-4">
                     {result.reasoning?.map((point, idx) => (
                       <div key={idx} className="flex gap-3">
@@ -508,7 +578,7 @@ function BailStrategyPageContent() {
                     </Button>
                   </div>
                   <p className="mt-4 text-xs leading-5 text-text-secondary">
-                    This structural analysis is for legal review. Bail outcomes depend heavily on specific case facts and judicial discretion.
+                    This structural analysis distinguishes authoritative deterministic statutory findings from AI contextual reasoning. Final bail outcomes depend on specific case facts, filings, and judicial discretion.
                   </p>
                 </div>
               </div>

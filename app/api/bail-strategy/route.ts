@@ -8,28 +8,23 @@ import {
   normalizeBailStrategyCourtStage,
   type BailStrategyCourtStage,
 } from "@/lib/section-preservation";
+import {
+  determineAuthoritativeEligibility,
+  labelForOffenseType,
+  labelForCustodyDuration,
+  labelForCourtStage,
+  labelForPreviousBail,
+  type AuthoritativeEligibilityResult,
+  type DeterministicFindingsMetadata,
+  type AuthoritativeAuthority,
+  type Eligibility,
+  type OffenseType,
+  type CustodyDuration,
+  type PreviousBail,
+  type BailStrategyInput as BailStrategyRequestBody,
+} from "@/lib/bail-strategy-engine";
 
 export const runtime = "nodejs";
-
-type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
-type CustodyDuration = "under-30" | "1-6mo" | "6-12mo" | "1-2yr" | "over-2yr";
-type PreviousBail = "none" | "1-rejected" | "2plus-rejected" | "granted-cancelled";
-type Eligibility = "Likely eligible" | "Uncertain" | "Unlikely eligible";
-
-interface BailStrategyRequestBody {
-  sections: string;
-  legalFramework?: LegalFramework;
-  offenseType: OffenseType;
-  custodyDuration: CustodyDuration;
-  courtStage: BailStrategyCourtStage;
-  previousBail: PreviousBail;
-  accusedTags: string[];
-  age: string;
-  firOrCnr: string;
-  additionalContext: string;
-  ndpsQuantity?: any;
-  pmlaAmount?: number;
-}
 
 interface BailStrategyResponse {
   eligibility: string;
@@ -41,24 +36,19 @@ const OFFENSE_TYPES: OffenseType[] = ["non-bailable", "bailable", "ndps", "uapa"
 const CUSTODY_DURATIONS: CustodyDuration[] = ["under-30", "1-6mo", "6-12mo", "1-2yr", "over-2yr"];
 const PREVIOUS_BAIL_OPTIONS: PreviousBail[] = ["none", "1-rejected", "2plus-rejected", "granted-cancelled"];
 
-const systemPrompt = `You are a legal reasoning assistant.
+const systemPrompt = `You are a legal reasoning assistant in Indian criminal bail law.
 
-Your task is to analyze bail eligibility based on given case facts.
+Your task is to provide structured legal explanation for a bail matter based on given case facts and backend legal posture.
 
-Return ONLY valid JSON. Do not include explanations, markdown, or extra text.
-
+RULES:
+1. Do NOT decide, alter, or override statutory bail findings.
+2. For discretionary non-bailable matters, regular bail is an exercise of judicial discretion. Analyze the competing factors (severity, custody duration, chargesheet filing, parity, criminal antecedents) without asserting statutory certainty.
+3. Return ONLY valid JSON:
 {
-  "eligibility": "Likely Eligible" | "Moderate Chance" | "Low Probability",
-  "reasoning": ["short point 1", "short point 2"],
-  "keyFactors": ["factor 1", "factor 2"]
+  "reasoning": ["point 1 on statutory posture / judicial discretion", "point 2 analyzing factual considerations", "point 3 on procedural steps and conditions"],
+  "keyFactors": ["factor 1", "factor 2", "factor 3"]
 }
-
-Rules:
-* Keep responses concise
-* No paragraphs
-* No bail application drafting
-* No placeholders
-* Focus on legal factors (chargesheet, custody, parity, offence severity)`;
+4. Keep responses concise, objective, and legally grounded. No paragraphs, no drafting, no placeholders.`;
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
@@ -174,75 +164,57 @@ function normalizeEligibility(value: string): string {
   }
 }
 
-function labelForCustodyDuration(value: CustodyDuration): string {
-  switch (value) {
-    case "under-30":
-      return "Under 30 days";
-    case "1-6mo":
-      return "1 to 6 months";
-    case "6-12mo":
-      return "6 to 12 months";
-    case "1-2yr":
-      return "1 to 2 years";
-    case "over-2yr":
-      return "Over 2 years";
-  }
-}
-
-function labelForOffenseType(value: OffenseType): string {
-  switch (value) {
-    case "non-bailable":
-      return "Non-bailable offense";
-    case "bailable":
-      return "Bailable offense";
-    case "ndps":
-      return "NDPS matter";
-    case "uapa":
-      return "UAPA matter";
-    case "pmla":
-      return "PMLA matter";
-    case "unknown":
-      return "Unclear offense classification";
-  }
-}
-
-function labelForCourtStage(value: BailStrategyCourtStage): string {
-  switch (value) {
-    case "SESSIONS":
-      return "Sessions Court stage";
-    case "MAGISTRATE":
-      return "Magistrate stage";
-    case "no-chargesheet":
-      return "Charge sheet not filed";
-    case "HIGH_COURT":
-      return "High Court stage";
-    case "UNSPECIFIED":
-      return "Court stage unspecified";
-  }
-}
-
-function labelForPreviousBail(value: PreviousBail): string {
-  switch (value) {
-    case "none":
-      return "No prior bail rejection";
-    case "1-rejected":
-      return "One prior rejection";
-    case "2plus-rejected":
-      return "Two or more prior rejections";
-    case "granted-cancelled":
-      return "Bail previously granted and later cancelled";
-  }
-}
-
 const clean = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
-function buildPrompt(body: BailStrategyRequestBody, promptInjection: string): string {
-  const lines = [
-    promptInjection,
-    "",
-    "Prepare a structured bail strategy brief from the following Indian criminal matter inputs."
-  ];
+function buildPrompt(
+  body: BailStrategyRequestBody,
+  promptInjection: string,
+  authoritativeResult: AuthoritativeEligibilityResult,
+): string {
+  const lines = [promptInjection, ""];
 
+  if (authoritativeResult.authority === "DETERMINISTIC") {
+    lines.push(
+      "AUTHORITATIVE STATUTORY FINDING (BACKEND ESTABLISHED — DO NOT ALTER):",
+      `- Statutory Finding: [${authoritativeResult.eligibility}]`,
+      `- Authority Classification: [Deterministic statutory finding]`,
+      `- Legal Basis: ${authoritativeResult.ruleSummary}`,
+      "",
+      "INSTRUCTIONS FOR AI EXPLANATION:",
+      "- Explain why this statutory finding applies under Indian criminal law.",
+      "- Groq cannot override, contradict, or alter this statutory entitlement/bar.",
+      "- Address relevant procedural posture and conditions the court may impose."
+    );
+  } else if (authoritativeResult.authority === "DISCRETIONARY") {
+    lines.push(
+      "LEGAL POSTURE: DISCRETIONARY BAIL ANALYSIS (NON-BAILABLE OFFENSE):",
+      `- Machine-Readable Baseline: [Uncertain] (regular bail is discretionary; no statutory entitlement exists)`,
+      `- Authority Classification: [Discretionary analysis]`,
+      `- Legal Ground: ${authoritativeResult.ruleSummary}`,
+      "",
+      "STRUCTURED CASE FACTORS TO WEIGH:",
+      ...(authoritativeResult.discretionaryFactors || []).map((f) => `- ${f}`),
+      "",
+      "INSTRUCTIONS FOR AI EXPLANATION:",
+      "- Explicitly acknowledge that regular bail is an exercise of judicial discretion under CrPC 437/439 (or BNSS 480/483) rather than a statutory entitlement.",
+      "- Analyze the competing factors that may support or weigh against bail based on the supplied facts and established legal principles.",
+      "- Do NOT present your analysis as an absolute statutory entitlement or deterministic legal conclusion.",
+      "- Do NOT convert the baseline status into a fabricated certainty."
+    );
+  } else {
+    lines.push(
+      "LEGAL POSTURE: UNRESOLVED STATUTORY CLASSIFICATION:",
+      `- Machine-Readable Baseline: [Uncertain]`,
+      `- Authority Classification: [Unresolved statutory finding]`,
+      `- Note: ${authoritativeResult.ruleSummary}`,
+      "",
+      "INSTRUCTIONS FOR AI EXPLANATION:",
+      "- Provide contextual legal reasoning based on general principles only.",
+      "- Clearly acknowledge that statutory classification remains unverified by the deterministic engine."
+    );
+  }
+
+  lines.push("", "CASE FACTS:");
   const sections = clean(body.sections);
   if (sections) lines.push(`Sections: ${sections}`);
   if (body.legalFramework) lines.push(`Legal framework: ${body.legalFramework}`);
@@ -273,18 +245,8 @@ function buildPrompt(body: BailStrategyRequestBody, promptInjection: string): st
   const ctx = clean(body.additionalContext);
   if (ctx) lines.push(`Additional context: ${ctx}`);
 
-  lines.push(
-    "",
-    "Important reasoning rules:",
-    "- Derive the grounds directly from accused tags and the procedural posture.",
-    "- Default bail eligibility under CrPC 167(2) has already been computed deterministically by the backend. Follow the DETERMINISTIC LEGAL FINDINGS above. Do NOT independently assess 167(2) eligibility.",
-    "- If offense type involves NDPS, UAPA, or PMLA, address the stricter statutory bail threshold and explain how it affects strategy.",
-    "- Recommend the most suitable court and escalation path based on current stage and prior bail history."
-  );
-
   return lines.join("\n");
 }
-
 
 export async function POST(request: Request) {
   let rawBody;
@@ -320,13 +282,20 @@ export async function POST(request: Request) {
       pmlaAmount: body.pmlaAmount,
     });
 
+    const authoritativeResult = determineAuthoritativeEligibility(
+      legalRules,
+      body,
+      custodyDays,
+      chargesheetFiled,
+    );
+
     console.log("[LegalRules] Custody days:", custodyDays);
     console.log("[LegalRules] Sections:", parsedSections);
-    console.log("[LegalRules] promptInjection:\n", legalRules.promptInjection);
+    console.log("[AuthoritativeResult]", authoritativeResult);
 
     let aiResponse;
     try {
-      const prompt = `${systemPrompt}\n\n${buildPrompt(body, legalRules.promptInjection)}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
+      const prompt = `${systemPrompt}\n\n${buildPrompt(body, legalRules.promptInjection, authoritativeResult)}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
       console.log("[Final Prompt String]", prompt);
 
       const rawText = await generateAIResponse(prompt);
@@ -354,20 +323,24 @@ export async function POST(request: Request) {
         .map((f: any) => (typeof f === "string" ? f.trim() : String(f?.factor || f?.text || f || "")))
         .filter(Boolean);
 
-      const rawEligibility = typeof parsed.eligibility === "string" && parsed.eligibility.trim()
-        ? parsed.eligibility.trim()
-        : "Moderate Chance";
-
       aiResponse = {
         success: true,
         strategy: {
-          eligibility: normalizeEligibility(rawEligibility),
+          eligibility: authoritativeResult.eligibility,
+          authority: authoritativeResult.authority,
+          ruleSummary: authoritativeResult.ruleSummary,
+          deterministicFindings: authoritativeResult.deterministicFindings,
+          discretionaryFactors: authoritativeResult.discretionaryFactors,
           reasoning: reasoning.length > 0 ? reasoning : [
-            "Case involves evaluated statutory sections",
+            authoritativeResult.ruleSummary,
             "Investigation status and custody duration are relevant",
             "Court will consider overall circumstances"
           ],
-          keyFactors,
+          keyFactors: keyFactors.length > 0 ? keyFactors : [
+            legalRules.offenseClass.primarySection || labelForOffenseType(body.offenseType),
+            labelForCustodyDuration(body.custodyDuration),
+            labelForCourtStage(body.courtStage),
+          ],
         },
       };
     } catch (error: any) {
