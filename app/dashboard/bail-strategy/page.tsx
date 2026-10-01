@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import type { BailStrategyCourtStage } from "@/lib/section-preservation";
+import type { RetrievedAuthority } from "@/lib/authority-retrieval";
 
 type ViewState = "form" | "loading" | "result";
 type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
@@ -53,6 +54,7 @@ interface BailStrategyResult {
     specialActBar?: boolean;
     isJuvenile?: boolean;
   };
+  retrievedAuthorities?: RetrievedAuthority[];
 }
 
 const INITIAL_FORM: BailStrategyRequestBody = {
@@ -565,6 +567,57 @@ function BailStrategyPageContent() {
                     </div>
                   </div>
                 )}
+
+                {result.retrievedAuthorities && result.retrievedAuthorities.length > 0 ? (
+                  <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <h3 className="text-lg font-semibold text-text-primary">Relevant Legal Authorities</h3>
+                      <span className="text-xs text-text-secondary">Source references</span>
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      {result.retrievedAuthorities.map((authority) => (
+                        <div key={authority.authorityId} className="rounded-2xl border border-border/50 bg-bg-primary p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-text-primary">{authority.caseName}</p>
+                            <span className="text-[11px] text-text-secondary">
+                              {authority.provenance === "verified" ? "Verified source" : "Curated authority reference"}
+                            </span>
+                          </div>
+                          {authority.court || authority.citation || authority.date || authority.source ? (
+                            <p className="mt-1 text-xs text-text-secondary">
+                              {[authority.court, authority.citation, authority.date, authority.source].filter(Boolean).join(" · ")}
+                            </p>
+                          ) : null}
+                          {authority.derived?.legalPrinciple ? (
+                            <p className="mt-3 text-sm leading-6 text-text-primary">{authority.derived.legalPrinciple}</p>
+                          ) : null}
+                          {(authority.derived?.matchedIssues?.length ?? 0) > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {authority.derived?.matchedIssues?.map((issue) => (
+                                <span key={issue} className="rounded-full border border-border/60 bg-bg-card px-2.5 py-1 text-[11px] text-text-secondary">
+                                  {issue}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                          {authority.judgmentUrl ? (
+                            <a
+                              href={authority.judgmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-3 inline-block text-xs text-accent underline underline-offset-4"
+                            >
+                              View source
+                            </a>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-xs leading-5 text-text-secondary">
+                      These authority references provide context only. They do not determine eligibility or replace verification against the current record and applicable law.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-3 sm:flex-row">

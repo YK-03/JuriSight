@@ -1,6 +1,12 @@
 import type { LegalRuleOutput, Severity } from "./legal-rules";
 import type { LegalFramework } from "./legal-framework";
 import type { BailStrategyCourtStage } from "./section-preservation";
+import { buildSearchLink } from "./precedents";
+import {
+  retrievePrecedents,
+  buildPrecedentQuery,
+  type PrecedentCaseData,
+} from "./precedent-retrieval";
 
 export type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
 export type CustodyDuration = "under-30" | "1-6mo" | "6-12mo" | "1-2yr" | "over-2yr";

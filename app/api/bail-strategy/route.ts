@@ -2,11 +2,10 @@ import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
 import { getSuretyRange } from "@/lib/surety-engine";
 import { NextResponse } from "next/server";
 import { runLegalRules } from "@/lib/legal-rules";
-import { resolveLegalFramework, type LegalFramework } from "@/lib/legal-framework";
+import { resolveLegalFramework } from "@/lib/legal-framework";
 import {
   isChargesheetFiledForBailStrategyStage,
   normalizeBailStrategyCourtStage,
-  type BailStrategyCourtStage,
 } from "@/lib/section-preservation";
 import {
   determineAuthoritativeEligibility,
@@ -16,13 +15,20 @@ import {
   labelForPreviousBail,
   type AuthoritativeEligibilityResult,
   type DeterministicFindingsMetadata,
-  type AuthoritativeAuthority,
-  type Eligibility,
   type OffenseType,
   type CustodyDuration,
   type PreviousBail,
   type BailStrategyInput as BailStrategyRequestBody,
 } from "@/lib/bail-strategy-engine";
+import {
+  buildBailAuthorityQuery,
+  retrieveAuthoritiesSafely,
+  retrieveVerifiedAuthorities,
+  selectVerifiedOrCuratedAuthorities,
+  type RetrievedAuthority,
+} from "@/lib/authority-retrieval";
+import { curatedAuthorityRetriever } from "@/lib/curated-authority-retriever";
+import { ecourtsIndiaAuthorityProvider } from "@/lib/ecourtsindia-authority-provider";
 
 export const runtime = "nodejs";
 
@@ -170,6 +176,7 @@ function buildPrompt(
   body: BailStrategyRequestBody,
   promptInjection: string,
   authoritativeResult: AuthoritativeEligibilityResult,
+  retrievedAuthorities: RetrievedAuthority[],
 ): string {
   const lines = [promptInjection, ""];
 
@@ -214,7 +221,25 @@ function buildPrompt(
     );
   }
 
-  lines.push("", "CASE FACTS:");
+  lines.push(
+    "",
+    "RETRIEVED LEGAL AUTHORITIES (REFERENCE MATERIAL ONLY):",
+    retrievedAuthorities.length > 0
+      ? JSON.stringify(retrievedAuthorities, null, 2)
+      : "No curated authority matched the structured bail issues.",
+    "",
+    "AUTHORITY SAFETY RULES:",
+    "- Deterministic backend findings are authoritative and cannot be changed by authorities or Groq.",
+    "- Retrieved authorities are contextual reference material, not a bail decision rule.",
+    "- Do not invent cases, citations, URLs, courts, quotations, or passages.",
+    "- Do not call an authority binding unless supplied metadata supports that characterization.",
+    "- Distinguish binding, persuasive, and unknown authority levels when metadata exists.",
+    "- A retrieved authority may explain a listed issue but cannot create a new eligibility conclusion.",
+    "- Never convert the number or frequency of authorities into an eligibility score or rule.",
+    "- Acknowledge when the retrieved material is insufficient.",
+    "",
+    "CASE FACTS:",
+  );
   const sections = clean(body.sections);
   if (sections) lines.push(`Sections: ${sections}`);
   if (body.legalFramework) lines.push(`Legal framework: ${body.legalFramework}`);
@@ -289,14 +314,40 @@ export async function POST(request: Request) {
       chargesheetFiled,
     );
 
-    console.log("[LegalRules] Custody days:", custodyDays);
-    console.log("[LegalRules] Sections:", parsedSections);
-    console.log("[AuthoritativeResult]", authoritativeResult);
+    const authorityQuery = buildBailAuthorityQuery({
+      input: body,
+      legalRules,
+      authoritativeResult,
+      custodyDays,
+      chargesheetFiled,
+    });
+
+    const verifiedAuthorities = await retrieveVerifiedAuthorities(
+      ecourtsIndiaAuthorityProvider,
+      authorityQuery,
+      (errors) => console.error("[eCourtsIndia Authority Rejected]:", errors),
+      () => console.error("[eCourtsIndia Authority Retrieval Error]"),
+    );
+    const curatedAuthorities: RetrievedAuthority[] = verifiedAuthorities.length > 0
+      ? []
+      : await retrieveAuthoritiesSafely(
+        curatedAuthorityRetriever,
+        authorityQuery,
+        (retrievalError) => console.error("[Bail Strategy Authority Retrieval Error]:", retrievalError),
+      );
+    const retrievedAuthorities = selectVerifiedOrCuratedAuthorities(verifiedAuthorities, curatedAuthorities);
+
+    console.log("[Bail Strategy] Retrieval summary", {
+      eligibility: authoritativeResult.eligibility,
+      authority: authoritativeResult.authority,
+      verifiedCount: verifiedAuthorities.length,
+      curatedCount: curatedAuthorities.length,
+      fallbackUsed: verifiedAuthorities.length === 0,
+    });
 
     let aiResponse;
     try {
-      const prompt = `${systemPrompt}\n\n${buildPrompt(body, legalRules.promptInjection, authoritativeResult)}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
-      console.log("[Final Prompt String]", prompt);
+      const prompt = `${systemPrompt}\n\n${buildPrompt(body, legalRules.promptInjection, authoritativeResult, retrievedAuthorities)}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
 
       const rawText = await generateAIResponse(prompt);
       const parsed = extractJsonBlock(rawText) as any;
@@ -331,6 +382,7 @@ export async function POST(request: Request) {
           ruleSummary: authoritativeResult.ruleSummary,
           deterministicFindings: authoritativeResult.deterministicFindings,
           discretionaryFactors: authoritativeResult.discretionaryFactors,
+          retrievedAuthorities,
           reasoning: reasoning.length > 0 ? reasoning : [
             authoritativeResult.ruleSummary,
             "Investigation status and custody duration are relevant",
@@ -344,7 +396,7 @@ export async function POST(request: Request) {
         },
       };
     } catch (error: any) {
-      console.error("[Bail Strategy AI Error]:", error?.message || error);
+      console.error("[Bail Strategy AI Error]:", error instanceof Error ? error.name : typeof error);
       return NextResponse.json(
         { success: false, error: "AI service unavailable. Please try again." },
         { status: 503 }
@@ -369,7 +421,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, strategy: finalStrategy });
   } catch (e: any) {
-    console.error("[API ERROR]", e);
+    console.error("[API ERROR]", e instanceof Error ? e.name : typeof e);
 
     return NextResponse.json(
       { success: false, error: "Unable to process bail strategy. Please try again." },
