@@ -1,6 +1,6 @@
 # JuriSight
 
-JuriSight is an AI-powered legal analysis platform designed to support criminal case review and legal research workflows. It assists with analyzing FIRs, charge sheets, and case narratives by combining document processing, procedural validation, and contextual AI reasoning.
+JuriSight is an AI-assisted legal analysis platform designed to support criminal case review and legal research workflows. It helps analyze FIRs, charge sheets, and case narratives by combining document processing, deterministic legal-rule evaluation, legal-authority retrieval, and contextual AI reasoning.
 
 ![JuriSight](public/jurisight.jpg)
 
@@ -8,7 +8,16 @@ JuriSight is an AI-powered legal analysis platform designed to support criminal 
 
 ## About
 
-JuriSight streamlines the review of criminal case documents by transforming unstructured legal records into organized analyses. The platform combines document extraction, procedural checks, and conversational AI to help users understand case details, evaluate procedural considerations, and explore legal questions through a single workflow.
+JuriSight streamlines the review of criminal case documents by transforming unstructured legal records into structured analyses.
+
+The platform combines:
+
+- Document extraction
+- Procedural and statutory rule evaluation
+- Bail eligibility analysis
+- Legal-authority retrieval
+- Contextual AI reasoning
+- Case-specific legal conversations
 
 It is designed for educational, research, and productivity purposes and is not intended to replace professional legal advice.
 
@@ -17,10 +26,12 @@ It is designed for educational, research, and productivity purposes and is not i
 ## Features
 
 - PDF upload and document extraction
-- FIR and charge sheet analysis
+- FIR and charge-sheet analysis
 - Bail eligibility assessment
-- Risk scoring and procedural evaluation
-- Applicable legal section identification
+- Deterministic statutory-rule evaluation
+- Legal-authority retrieval with source provenance
+- Risk and procedural evaluation
+- Applicable legal-section identification
 - Context-aware legal conversations
 - Persistent case history
 - Shareable case summaries
@@ -48,9 +59,9 @@ It is designed for educational, research, and productivity purposes and is not i
 
 - Groq API
 - PDF parsing
-- OCR-assisted document extraction
 - Structured prompting
-- Rule-based procedural validation
+- Rule-based legal validation
+- Legal-authority retrieval
 
 ---
 
@@ -58,35 +69,21 @@ It is designed for educational, research, and productivity purposes and is not i
 
 ```text
 User Input
-      │
-      ▼
+     │
+     ▼
 Document Extraction
-      │
-      ▼
-Procedural Validation
-      │
-      ▼
-AI Reasoning
-      │
-      ▼
-Risk Assessment
-      │
-      ▼
+     │
+     ▼
+Procedural & Statutory Validation
+     │
+     ▼
+Deterministic Legal Analysis
+     │
+     ▼
+Legal Authority Retrieval
+     │
+     ▼
+AI Contextual Reasoning
+     │
+     ▼
 Structured Legal Analysis
-```
-
----
-
-## Disclaimer
-
-JuriSight is an AI-assisted legal analysis platform intended for educational, research, and productivity purposes.
-
-It does not provide legal advice and should not be relied upon as a substitute for professional legal counsel. All outputs should be reviewed by a qualified legal professional.
-
----
-
-## License
-
-Copyright © 2026 Yash Kaushik.
-
-All Rights Reserved.
