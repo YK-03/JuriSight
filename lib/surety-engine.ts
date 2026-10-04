@@ -23,6 +23,19 @@ function formatCurrency(val: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(val);
 }
 
+export function normalizeSuretyBounds(
+  lowerBound: unknown,
+  upperBound: unknown,
+): { min: number; max: number } {
+  const lower = typeof lowerBound === "number" && Number.isFinite(lowerBound) ? lowerBound : 10000;
+  const upper = typeof upperBound === "number" && Number.isFinite(upperBound) ? upperBound : 50000;
+
+  return {
+    min: Math.min(lower, upper),
+    max: Math.max(lower, upper),
+  };
+}
+
 export function getSuretyRange(caseData: CaseData): SuretyRangeResult {
   let min = 10000;
   let max = 50000;
@@ -140,11 +153,12 @@ export function getSuretyRange(caseData: CaseData): SuretyRangeResult {
   max = Math.max(min + 10000, max);
   max = Math.min(500000, max);
 
-  const label = `${formatCurrency(min)} – ${formatCurrency(max)}`;
+  const normalizedBounds = normalizeSuretyBounds(min, max);
+
+  const label = `${formatCurrency(normalizedBounds.min)} – ${formatCurrency(normalizedBounds.max)}`;
 
   return {
-    min,
-    max,
+    ...normalizedBounds,
     label,
     reasoning
   };
