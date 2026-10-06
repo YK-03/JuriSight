@@ -4,6 +4,11 @@ import type { AuthoritativeEligibilityResult, BailStrategyInput } from "./bail-s
 export type AuthorityProfile = "CASE_ANALYSIS" | "BAIL_ELIGIBILITY";
 export type AuthorityProvenance = "curated" | "verified" | "retrieved" | "unverified";
 
+export const MAX_BAIL_AUTHORITY_QUERY_VARIANTS = 3;
+export const MAX_BAIL_AUTHORITY_SEARCH_REQUESTS_PER_SCENARIO = MAX_BAIL_AUTHORITY_QUERY_VARIANTS;
+export const MAX_BAIL_AUTHORITY_CASE_DETAIL_REQUESTS_PER_SCENARIO = MAX_BAIL_AUTHORITY_QUERY_VARIANTS;
+export const MAX_BAIL_AUTHORITY_CANDIDATES_PER_QUERY = 1;
+
 /** Interpretation derived locally or by a contextual model; never provider verification metadata. */
 export type DerivedAuthorityInterpretation = {
   legalPrinciple?: string;
@@ -165,6 +170,31 @@ export async function retrieveVerifiedAuthorities(
   }
 }
 
+export type ProgressiveVerifiedRetrievalResult = {
+  verifiedAuthorities: VerifiedAuthority[];
+  attemptedQueries: AuthorityRetrievalQuery[];
+};
+
+/** Runs bounded query variants and stops after the first verified result. */
+export async function retrieveVerifiedAuthoritiesProgressively(
+  source: VerifiedAuthoritySource,
+  queries: readonly AuthorityRetrievalQuery[],
+  onRejected?: (errors: string[], candidate: unknown) => void,
+  onError?: (error: unknown) => void,
+): Promise<ProgressiveVerifiedRetrievalResult> {
+  const attemptedQueries: AuthorityRetrievalQuery[] = [];
+
+  for (const query of queries.slice(0, MAX_BAIL_AUTHORITY_QUERY_VARIANTS)) {
+    attemptedQueries.push(query);
+    const verifiedAuthorities = await retrieveVerifiedAuthorities(source, query, onRejected, onError);
+    if (verifiedAuthorities.length > 0) {
+      return { verifiedAuthorities, attemptedQueries };
+    }
+  }
+
+  return { verifiedAuthorities: [], attemptedQueries };
+}
+
 export async function retrieveAuthoritiesSafely(
   retriever: AuthorityRetriever,
   query: AuthorityRetrievalQuery,
@@ -253,6 +283,140 @@ export function buildBailAuthorityQuery({
     issues,
     queryText,
   };
+}
+
+function uniqueIssues(values: string[]): string[] {
+  return values.filter((value, index) => value.length > 0 && values.indexOf(value) === index);
+}
+
+export type BailAuthorityQueryTermClassification = {
+  coreLegalIdentifiers: string[];
+  legalIssues: string[];
+  proceduralContext: string[];
+  factualFactors: string[];
+};
+
+export function classifyBailAuthorityQueryTerms(
+  baseQuery: AuthorityRetrievalQuery,
+): BailAuthorityQueryTermClassification {
+  const coreLegalIdentifiers = uniqueIssues([
+    ...baseQuery.sections,
+    ...baseQuery.issues.filter((issue) => /non-bailable|bailable|ndps|uapa|pmla|unknown/i.test(issue)),
+    ...baseQuery.issues.filter((issue) => /NDPS Section 37|PMLA twin conditions|UAPA statutory restriction/i.test(issue)),
+  ]);
+  const legalIssues = baseQuery.issues.filter((issue) =>
+    /default bail|Section 37|Section 45|statutory restriction|judicial discretion/i.test(issue),
+  );
+  const proceduralContext = baseQuery.issues.filter((issue) =>
+    /Court|chargesheet|pre-chargesheet|investigation ongoing|custody|prior bail/i.test(issue),
+  );
+  const factualFactors = baseQuery.issues.filter((issue) =>
+    /cooperation|parity|first-time offender|trial delay|economic offence|arrest and detention/i.test(issue),
+  );
+
+  return {
+    coreLegalIdentifiers,
+    legalIssues: uniqueIssues(legalIssues),
+    proceduralContext: uniqueIssues(proceduralContext),
+    factualFactors: uniqueIssues(factualFactors),
+  };
+}
+
+function withIssues(query: AuthorityRetrievalQuery, issues: string[]): AuthorityRetrievalQuery {
+  const normalized = uniqueIssues(issues.map((issue) => issue.trim()).filter(Boolean));
+  return {
+    ...query,
+    issues: normalized,
+    queryText: normalized.join(" "),
+  };
+}
+
+/**
+ * Builds a small ordered query set. Core statute/section identifiers are kept
+ * in every variant while procedural and factual modifiers are intentionally
+ * omitted from external search text.
+ */
+export function buildProgressiveBailAuthorityQueries(
+  baseQuery: AuthorityRetrievalQuery,
+): AuthorityRetrievalQuery[] {
+  const classified = classifyBailAuthorityQueryTerms(baseQuery);
+  const core = classified.coreLegalIdentifiers;
+  const primaryIssue = classified.legalIssues[0] || "bail";
+  const secondaryIssue = classified.legalIssues.find((issue) => issue !== primaryIssue) || "bail";
+  const sectionOrCore = core.length > 0 ? core : [baseQuery.offenseType || "bail"];
+
+  const variants = [
+    withIssues(baseQuery, [...sectionOrCore, primaryIssue]),
+    withIssues(baseQuery, [...sectionOrCore, secondaryIssue]),
+    withIssues(baseQuery, [...sectionOrCore, "bail"]),
+  ];
+
+  return variants.filter((variant, index) =>
+    variants.findIndex((candidate) => candidate.queryText === variant.queryText) === index,
+  ).slice(0, MAX_BAIL_AUTHORITY_QUERY_VARIANTS);
+}
+
+function firstMatchingIssue(issues: readonly string[], patterns: readonly RegExp[]): string | undefined {
+  return patterns.flatMap((pattern) => issues.filter((issue) => pattern.test(issue)))[0];
+}
+
+/**
+ * Builds the optimized deterministic query set used by the Bail Strategy
+ * provider path. Statute/framework and sections are retained in every query;
+ * procedural and factual modifiers remain internal and are not emitted.
+ */
+export function buildOptimizedProgressiveBailAuthorityQueries(
+  baseQuery: AuthorityRetrievalQuery,
+): AuthorityRetrievalQuery[] {
+  const classified = classifyBailAuthorityQueryTerms(baseQuery);
+  const core = uniqueIssues([
+    baseQuery.legalFramework || "",
+    ...baseQuery.sections,
+  ]);
+  const legalIssues = uniqueIssues([
+    ...baseQuery.issues,
+    ...classified.legalIssues,
+  ]);
+  const issueCandidates = legalIssues.filter((issue) =>
+    !classified.proceduralContext.includes(issue)
+      && !classified.factualFactors.includes(issue)
+      && !baseQuery.sections.includes(issue)
+      && issue !== baseQuery.legalFramework,
+  );
+  const primaryIssue = firstMatchingIssue(issueCandidates, [
+    /^default bail$/i,
+    /NDPS Section 37/i,
+    /PMLA twin conditions/i,
+    /UAPA statutory restriction/i,
+    /juvenile bail/i,
+    /^non-bailable offence$/i,
+    /^bailable$/i,
+    /^judicial discretion$/i,
+    /^unknown$/i,
+    /^ndps$/i,
+  ]) || "bail";
+  const specializedIssue = firstMatchingIssue(issueCandidates, [
+    /^default bail$/i,
+    /NDPS Section 37/i,
+    /PMLA twin conditions/i,
+    /UAPA statutory restriction/i,
+    /juvenile bail/i,
+    /statutory restriction/i,
+  ]);
+  const secondaryIssue = specializedIssue && specializedIssue !== primaryIssue
+    ? specializedIssue
+    : issueCandidates.find((issue) => issue !== primaryIssue && !core.some((value) => value === issue));
+  const identifiers = core.length > 0 ? core : [baseQuery.offenseType || "bail"];
+
+  const variants = [
+    withIssues(baseQuery, [...identifiers, primaryIssue]),
+    withIssues(baseQuery, [...identifiers, secondaryIssue || "bail"]),
+    withIssues(baseQuery, [...identifiers, "bail"]),
+  ];
+
+  return variants.filter((variant, index) =>
+    variants.findIndex((candidate) => candidate.queryText === variant.queryText) === index,
+  ).slice(0, MAX_BAIL_AUTHORITY_QUERY_VARIANTS);
 }
 
 function labelForCourtStageIssue(stage: BailStrategyInput["courtStage"]): string {

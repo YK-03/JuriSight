@@ -7,6 +7,11 @@ import {
   validateVerifiedAuthority,
   type VerifiedAuthoritySource,
 } from "../authority-retrieval";
+import {
+  MAX_BAIL_AUTHORITY_CASE_DETAIL_REQUESTS_PER_SCENARIO,
+  MAX_BAIL_AUTHORITY_QUERY_VARIANTS,
+  buildOptimizedProgressiveBailAuthorityQueries,
+} from "../authority-retrieval";
 import { EcourtsIndiaAuthorityProvider } from "../ecourtsindia-authority-provider";
 import { curatedAuthorityRetriever } from "../curated-authority-retriever";
 import {
@@ -23,6 +28,16 @@ export const CONTROLLED_ECOURTS_SCENARIO_IDS = [
 
 export type EcourtsEvaluationMode = "offline" | "live";
 
+export type EcourtsScenarioReport = {
+  scenarioId: string;
+  queryAttempts: number;
+  zeroResultQueries: number;
+  usableCandidates: number;
+  verifiedAuthorities: number;
+  successfulQueryVariant?: number;
+  fallbackUsed: boolean;
+};
+
 export type EcourtsProviderEvaluationMetrics = {
   mode: EcourtsEvaluationMode;
   scenarioCount: number;
@@ -38,6 +53,7 @@ export type EcourtsProviderEvaluationMetrics = {
   timeoutDetected: boolean;
   latencyMs: number;
   networkCalls: number;
+  scenarioReports: EcourtsScenarioReport[];
 };
 
 type RequestCounters = {
@@ -94,6 +110,7 @@ function offlineMetrics(): EcourtsProviderEvaluationMetrics {
     timeoutDetected: false,
     latencyMs: 0,
     networkCalls: 0,
+    scenarioReports: [],
   };
 }
 
@@ -121,44 +138,61 @@ export async function evaluateControlledEcourtsIndiaRetrieval(
   let fallbackUsed = false;
   let providerFailure = false;
   let timeoutDetected = false;
+  const scenarioReports: EcourtsScenarioReport[] = [];
   const startedAt = Date.now();
 
   const provider = new EcourtsIndiaAuthorityProvider(instrumentedFetch(counters));
 
   for (const scenario of controlledScenarios()) {
-    const query = buildBailRetrievalEvaluationQuery(scenario);
-    let rawCandidates: unknown[] = [];
+    const baseQuery = buildBailRetrievalEvaluationQuery(scenario);
+    const queries = buildOptimizedProgressiveBailAuthorityQueries(baseQuery);
+    const report: EcourtsScenarioReport = {
+      scenarioId: scenario.id,
+      queryAttempts: 0,
+      zeroResultQueries: 0,
+      usableCandidates: 0,
+      verifiedAuthorities: 0,
+      fallbackUsed: false,
+    };
+    let verified: Awaited<ReturnType<typeof retrieveVerifiedAuthorities>> = [];
 
-    try {
-      rawCandidates = await provider.retrieve(query);
-      usableCandidateCount += rawCandidates.length;
-    } catch (error) {
-      providerFailure = true;
-      timeoutDetected ||= isTimeout(error);
+    for (const query of queries.slice(0, MAX_BAIL_AUTHORITY_QUERY_VARIANTS)) {
+      report.queryAttempts += 1;
+      let rawCandidates: unknown[] = [];
+      try {
+        rawCandidates = await provider.retrieve(query);
+        report.usableCandidates += rawCandidates.length;
+        usableCandidateCount += rawCandidates.length;
+      } catch (error) {
+        providerFailure = true;
+        timeoutDetected ||= isTimeout(error);
+        break;
+      }
+
+      if (rawCandidates.length === 0) report.zeroResultQueries += 1;
+      const source: VerifiedAuthoritySource = { async retrieve() { return rawCandidates; } };
+      verified = await retrieveVerifiedAuthorities(
+        source,
+        query,
+        (errors) => {
+          validationRejectionCount += 1;
+          rejectionCategories.add(validationCategory(errors));
+        },
+        () => { providerFailure = true; },
+      );
+      if (verified.length > 0) break;
     }
 
-    const source: VerifiedAuthoritySource = {
-      async retrieve() {
-        return rawCandidates;
-      },
-    };
-    const verified = await retrieveVerifiedAuthorities(
-      source,
-      query,
-      (errors) => {
-        validationRejectionCount += 1;
-        rejectionCategories.add(validationCategory(errors));
-      },
-      () => {
-        providerFailure = true;
-      },
-    );
     verifiedAuthorityCount += verified.length;
+    report.verifiedAuthorities = verified.length;
+    if (verified.length > 0) report.successfulQueryVariant = report.queryAttempts;
     const curated = verified.length === 0
-      ? await retrieveAuthoritiesSafely(curatedAuthorityRetriever, query)
+      ? await retrieveAuthoritiesSafely(curatedAuthorityRetriever, baseQuery)
       : [];
     const selected = selectVerifiedOrCuratedAuthorities(verified, curated);
-    fallbackUsed ||= verified.length === 0 && selected.some((authority) => authority.provenance === "curated");
+    report.fallbackUsed = verified.length === 0 && selected.some((authority) => authority.provenance === "curated");
+    fallbackUsed ||= report.fallbackUsed;
+    scenarioReports.push(report);
   }
 
   return {
@@ -176,14 +210,15 @@ export async function evaluateControlledEcourtsIndiaRetrieval(
     timeoutDetected,
     latencyMs: Date.now() - startedAt,
     networkCalls: counters.totalProviderCalls,
+    scenarioReports,
   };
 }
 
 export function assertBoundedEcourtsMetrics(metrics: EcourtsProviderEvaluationMetrics): void {
-  if (metrics.searchRequestCount > metrics.scenarioCount) {
+  if (metrics.searchRequestCount > metrics.scenarioCount * MAX_BAIL_AUTHORITY_QUERY_VARIANTS) {
     throw new Error("eCourtsIndia search request bound exceeded");
   }
-  if (metrics.caseDetailRequestCount > metrics.scenarioCount) {
+  if (metrics.caseDetailRequestCount > metrics.scenarioCount * MAX_BAIL_AUTHORITY_CASE_DETAIL_REQUESTS_PER_SCENARIO) {
     throw new Error("eCourtsIndia detail request bound exceeded");
   }
   if (metrics.totalProviderCalls !== metrics.searchRequestCount + metrics.caseDetailRequestCount) {

@@ -22,8 +22,9 @@ import {
 } from "@/lib/bail-strategy-engine";
 import {
   buildBailAuthorityQuery,
+  buildOptimizedProgressiveBailAuthorityQueries,
   retrieveAuthoritiesSafely,
-  retrieveVerifiedAuthorities,
+  retrieveVerifiedAuthoritiesProgressively,
   selectVerifiedOrCuratedAuthorities,
   type RetrievedAuthority,
 } from "@/lib/authority-retrieval";
@@ -287,12 +288,14 @@ export async function POST(request: Request) {
       chargesheetFiled,
     });
 
-    const verifiedAuthorities = await retrieveVerifiedAuthorities(
+    const authorityQueries = buildOptimizedProgressiveBailAuthorityQueries(authorityQuery);
+    const progressiveRetrieval = await retrieveVerifiedAuthoritiesProgressively(
       ecourtsIndiaAuthorityProvider,
-      authorityQuery,
+      authorityQueries,
       (errors) => console.error("[eCourtsIndia Authority Rejected]:", errors),
       () => console.error("[eCourtsIndia Authority Retrieval Error]"),
     );
+    const verifiedAuthorities = progressiveRetrieval.verifiedAuthorities;
     const curatedAuthorities: RetrievedAuthority[] = verifiedAuthorities.length > 0
       ? []
       : await retrieveAuthoritiesSafely(
@@ -308,6 +311,7 @@ export async function POST(request: Request) {
       verifiedCount: verifiedAuthorities.length,
       curatedCount: curatedAuthorities.length,
       fallbackUsed: verifiedAuthorities.length === 0,
+      queryVariantsAttempted: progressiveRetrieval.attemptedQueries.length,
     });
 
     let aiResponse;

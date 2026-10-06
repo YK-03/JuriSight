@@ -23,6 +23,11 @@ async function main() {
   console.log(`Timeout detected: ${metrics.timeoutDetected ? "yes" : "no"}`);
   console.log(`Retrieval latency: ${metrics.latencyMs} ms`);
   console.log(`Network/API calls: ${metrics.networkCalls}`);
+  for (const scenario of metrics.scenarioReports) {
+    console.log(
+      `Scenario ${scenario.scenarioId}: queries=${scenario.queryAttempts}, zero-result queries=${scenario.zeroResultQueries}, candidates=${scenario.usableCandidates}, verified=${scenario.verifiedAuthorities}, successful-variant=${scenario.successfulQueryVariant ?? "none"}, fallback=${scenario.fallbackUsed ? "yes" : "no"}`,
+    );
+  }
   if (metrics.validationFailureCategories.length > 0) {
     console.log(`Validation failure categories: ${metrics.validationFailureCategories.join(", ")}`);
   }
