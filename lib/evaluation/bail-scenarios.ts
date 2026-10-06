@@ -22,12 +22,20 @@ export type BailScenarioExecution = {
   pmlaAmount?: number;
 };
 
+export type BailScenarioOfflineRetrievalMode =
+  | "verified"
+  | "curated-fallback"
+  | "provider-rejection"
+  | "provider-failure";
+
 export type BailStrategyEvaluationScenario = {
   id: string;
   description: string;
   input: BailStrategyInput;
   execution: BailScenarioExecution;
   expected: BailScenarioExpectedOutcome;
+  expectedRetrievalIssues: readonly string[];
+  offlineRetrievalMode: BailScenarioOfflineRetrievalMode;
 };
 
 const syntheticCaseId = (id: string) => `synthetic-${id}`;
@@ -56,6 +64,17 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Uncertain",
       authority: "DISCRETIONARY",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 420",
+      "non-bailable offence",
+      "Sessions Court",
+      "chargesheet filed",
+      "custody 90 days",
+      "no prior bail rejection",
+      "judicial discretion",
+    ],
+    offlineRetrievalMode: "verified",
   },
   {
     id: "bailable-offence",
@@ -80,6 +99,16 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Likely eligible",
       authority: "DETERMINISTIC",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 379",
+      "bailable",
+      "Magistrate Court",
+      "chargesheet filed",
+      "custody 10 days",
+      "no prior bail rejection",
+    ],
+    offlineRetrievalMode: "curated-fallback",
   },
   {
     id: "default-bail",
@@ -104,6 +133,17 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Likely eligible",
       authority: "DETERMINISTIC",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 420",
+      "non-bailable offence",
+      "pre-chargesheet",
+      "investigation ongoing",
+      "custody 90 days",
+      "no prior bail rejection",
+      "default bail",
+    ],
+    offlineRetrievalMode: "provider-rejection",
   },
   {
     id: "ndps-commercial-quantity",
@@ -130,6 +170,17 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Unlikely eligible",
       authority: "DETERMINISTIC",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "NDPS 21",
+      "ndps",
+      "Sessions Court",
+      "chargesheet filed",
+      "custody 90 days",
+      "no prior bail rejection",
+      "NDPS Section 37 twin conditions",
+    ],
+    offlineRetrievalMode: "provider-failure",
   },
   {
     id: "ndps-unresolved-quantity",
@@ -156,6 +207,16 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Uncertain",
       authority: "DETERMINISTIC_UNRESOLVED",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "NDPS 21",
+      "ndps",
+      "Sessions Court",
+      "chargesheet filed",
+      "custody 10 days",
+      "no prior bail rejection",
+    ],
+    offlineRetrievalMode: "verified",
   },
   {
     id: "juvenile-case",
@@ -180,6 +241,16 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Likely eligible",
       authority: "DETERMINISTIC",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 420",
+      "non-bailable offence",
+      "Magistrate Court",
+      "chargesheet filed",
+      "custody 10 days",
+      "no prior bail rejection",
+    ],
+    offlineRetrievalMode: "curated-fallback",
   },
   {
     id: "unsupported-offence-framework",
@@ -204,6 +275,16 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Uncertain",
       authority: "DETERMINISTIC_UNRESOLVED",
     },
+    expectedRetrievalIssues: [
+      "CURRENT_BNS_BNSS",
+      "BNS 420",
+      "unknown",
+      "Sessions Court",
+      "chargesheet filed",
+      "custody 90 days",
+      "no prior bail rejection",
+    ],
+    offlineRetrievalMode: "verified",
   },
   {
     id: "severe-discretionary",
@@ -228,6 +309,17 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Uncertain",
       authority: "DISCRETIONARY",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 302",
+      "non-bailable offence",
+      "Sessions Court",
+      "chargesheet filed",
+      "custody 10 days",
+      "no prior bail rejection",
+      "judicial discretion",
+    ],
+    offlineRetrievalMode: "verified",
   },
   {
     id: "favourable-discretionary",
@@ -252,6 +344,21 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Uncertain",
       authority: "DISCRETIONARY",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 420",
+      "non-bailable offence",
+      "High Court",
+      "chargesheet filed",
+      "custody 730 days",
+      "no prior bail rejection",
+      "judicial discretion",
+      "cooperation",
+      "parity",
+      "first-time offender",
+      "trial delay",
+    ],
+    offlineRetrievalMode: "curated-fallback",
   },
   {
     id: "previous-bail-rejection-parity",
@@ -276,6 +383,17 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       eligibility: "Uncertain",
       authority: "DISCRETIONARY",
     },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 307",
+      "non-bailable offence",
+      "Sessions Court",
+      "chargesheet filed",
+      "custody 180 days",
+      "previous bail history",
+      "judicial discretion",
+      "parity",
+    ],
+    offlineRetrievalMode: "provider-rejection",
   },
 ] as const;
-

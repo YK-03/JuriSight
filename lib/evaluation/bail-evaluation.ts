@@ -52,7 +52,7 @@ function parseSections(value: string): string[] {
     .filter(Boolean);
 }
 
-function runScenarioRules(
+export function runBailScenarioDeterministicPipeline(
   scenario: BailStrategyEvaluationScenario,
 ): { legalRules: LegalRuleOutput; authoritative: AuthoritativeEligibilityResult } {
   const { input, execution } = scenario;
@@ -105,7 +105,7 @@ function toDeterministicFindings(
 export function evaluateBailScenario(
   scenario: BailStrategyEvaluationScenario,
 ): BailEvaluationResult {
-  const { legalRules, authoritative } = runScenarioRules(scenario);
+  const { legalRules, authoritative } = runBailScenarioDeterministicPipeline(scenario);
   const failureReasons: string[] = [];
 
   if (authoritative.eligibility !== scenario.expected.eligibility) {
@@ -151,4 +151,3 @@ export function evaluateAllBailScenarios(
     overallPassed: failed === 0,
   };
 }
-
