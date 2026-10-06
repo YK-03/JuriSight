@@ -125,3 +125,40 @@ export function extractJsonBlock(raw: string): unknown {
 
   throw new Error("Failed to parse AI response as JSON");
 }
+
+export type BailStrategyModelOutput = {
+  reasoning: string[];
+  keyFactors: string[];
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeStringArray(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
+    throw new Error(`Invalid Bail Strategy model field: ${field}`);
+  }
+
+  return value.map((entry) => entry.trim()).filter(Boolean);
+}
+
+/**
+ * Enforces the Bail Strategy model boundary. The model may supply only
+ * contextual reasoning and key factors; all other fields are ignored.
+ */
+export function validateBailStrategyModelOutput(value: unknown): BailStrategyModelOutput {
+  if (!isRecord(value)) {
+    throw new Error("Bail Strategy model output must be an object");
+  }
+
+  return {
+    reasoning: normalizeStringArray(value.reasoning, "reasoning"),
+    keyFactors: normalizeStringArray(value.keyFactors, "keyFactors"),
+  };
+}
+
+/** Parse and validate the raw model response at the Bail Strategy boundary. */
+export function parseBailStrategyModelOutput(raw: string): BailStrategyModelOutput {
+  return validateBailStrategyModelOutput(extractJsonBlock(raw));
+}

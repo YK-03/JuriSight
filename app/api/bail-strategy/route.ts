@@ -1,4 +1,4 @@
-import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
+import { generateAIResponse, parseBailStrategyModelOutput } from "@/lib/groq";
 import { getSuretyRange } from "@/lib/surety-engine";
 import { NextResponse } from "next/server";
 import { runLegalRules } from "@/lib/legal-rules";
@@ -31,12 +31,6 @@ import { curatedAuthorityRetriever } from "@/lib/curated-authority-retriever";
 import { ecourtsIndiaAuthorityProvider } from "@/lib/ecourtsindia-authority-provider";
 
 export const runtime = "nodejs";
-
-interface BailStrategyResponse {
-  eligibility: string;
-  reasoning: string[];
-  keyFactors: string[];
-}
 
 const OFFENSE_TYPES: OffenseType[] = ["non-bailable", "bailable", "ndps", "uapa", "pmla", "unknown"];
 const CUSTODY_DURATIONS: CustodyDuration[] = ["under-30", "1-6mo", "6-12mo", "1-2yr", "over-2yr"];
@@ -139,35 +133,6 @@ function parseAge(age: string | number | undefined): number {
   if (!age) return 25;
   const match = String(age).match(/\d+/);
   return match ? parseInt(match[0], 10) : 25;
-}
-
-function isStrategy(value: unknown): value is BailStrategyResponse {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-
-  const strategy = value as BailStrategyResponse;
-
-  return (
-    typeof strategy.eligibility === "string" &&
-    Array.isArray(strategy.reasoning) &&
-    Array.isArray(strategy.keyFactors) &&
-    strategy.reasoning.every(r => typeof r === "string") &&
-    strategy.keyFactors.every(f => typeof f === "string")
-  );
-}
-
-function normalizeEligibility(value: string): string {
-  switch (value.trim().toLowerCase()) {
-    case "likely eligible":
-      return "Likely eligible";
-    case "moderate chance":
-      return "Uncertain";
-    case "low probability":
-      return "Unlikely eligible";
-    default:
-      return value;
-  }
 }
 
 const clean = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -350,29 +315,9 @@ export async function POST(request: Request) {
       const prompt = `${systemPrompt}\n\n${buildPrompt(body, legalRules.promptInjection, authoritativeResult, retrievedAuthorities)}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
 
       const rawText = await generateAIResponse(prompt);
-      const parsed = extractJsonBlock(rawText) as any;
-
-      if (!parsed || typeof parsed !== "object") {
-        throw new Error("Invalid JSON structure from model");
-      }
-
-      const rawReasoning = Array.isArray(parsed.reasoning)
-        ? parsed.reasoning
-        : typeof parsed.reasoning === "string" && parsed.reasoning.trim()
-        ? [parsed.reasoning.trim()]
-        : [];
-      const reasoning = rawReasoning
-        .map((r: any) => (typeof r === "string" ? r.trim() : String(r?.text || r?.point || r || "")))
-        .filter(Boolean);
-
-      const rawFactors = Array.isArray(parsed.keyFactors)
-        ? parsed.keyFactors
-        : typeof parsed.keyFactors === "string" && parsed.keyFactors.trim()
-        ? [parsed.keyFactors.trim()]
-        : [];
-      const keyFactors = rawFactors
-        .map((f: any) => (typeof f === "string" ? f.trim() : String(f?.factor || f?.text || f || "")))
-        .filter(Boolean);
+      const modelOutput = parseBailStrategyModelOutput(rawText);
+      const reasoning = modelOutput.reasoning;
+      const keyFactors = modelOutput.keyFactors;
 
       aiResponse = {
         success: true,
