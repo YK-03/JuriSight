@@ -121,7 +121,9 @@ function createOfflineSource(
   };
 }
 
-function queryForScenario(scenario: BailStrategyEvaluationScenario): AuthorityRetrievalQuery {
+export function buildBailRetrievalEvaluationQuery(
+  scenario: BailStrategyEvaluationScenario,
+): AuthorityRetrievalQuery {
   const { legalRules, authoritative } = runBailScenarioDeterministicPipeline(scenario);
   return buildBailAuthorityQuery({
     input: scenario.input,
@@ -167,7 +169,7 @@ async function retrieveOffline(
 export async function evaluateBailRetrievalScenario(
   scenario: BailStrategyEvaluationScenario,
 ): Promise<BailRetrievalEvaluationResult> {
-  const query = queryForScenario(scenario);
+  const query = buildBailRetrievalEvaluationQuery(scenario);
   const trace = await retrieveOffline(scenario, query);
   const expectedIssues = [...scenario.expectedRetrievalIssues];
   const matchedIssues = expectedIssues.filter((issue) => hasIssueOverlap(query, issue));
