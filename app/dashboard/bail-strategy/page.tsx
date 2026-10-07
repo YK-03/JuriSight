@@ -138,6 +138,51 @@ function eligibilityBadgeClasses(value: Eligibility) {
   return "border-state-error/30 bg-state-error/10 text-state-error";
 }
 
+function formatDiscretionaryFactor(factor: string) {
+  if (factor.startsWith("Offense: ")) {
+    const offense = factor.slice("Offense: ".length);
+    const [description, severity] = offense.split(", Severity: ");
+    const sectionMatch = description.match(/^(.*?) \((IPC|CrPC|BNSS|NDPS|UAPA|PMLA) (.+)\)$/);
+    const naturalDescription = sectionMatch
+      ? `${sectionMatch[1]} offence under Section ${sectionMatch[3]} ${sectionMatch[2]}`
+      : `${description.toLowerCase()} offence`;
+    return severity ? `${naturalDescription} (${severity} severity)` : naturalDescription;
+  }
+
+  if (factor.startsWith("Custody served: ")) {
+    return factor.slice("Custody served: ".length).split(" (")[0] + " in custody";
+  }
+
+  if (factor === "Investigation status: Chargesheet filed") {
+    return "Investigation complete; charge-sheet filed";
+  }
+
+  if (factor === "Investigation status: Investigation ongoing (chargesheet not filed)") {
+    return "Investigation ongoing; charge-sheet not filed";
+  }
+
+  if (factor.startsWith("Prior bail history: ")) {
+    const history = factor.slice("Prior bail history: ".length);
+    const historyLabels: Record<string, string> = {
+      None: "No previous bail rejection",
+      "1 rejected": "One previous bail rejection",
+      "2+ rejected": "Two or more previous bail rejections",
+      "Granted then cancelled": "Previous bail was granted and later cancelled",
+    };
+    return historyLabels[history] || history;
+  }
+
+  if (factor.startsWith("Procedural forum: ")) {
+    return factor.slice("Procedural forum: ".length);
+  }
+
+  if (factor.startsWith("Accused profile factors: ")) {
+    return `Mitigating factors: ${factor.slice("Accused profile factors: ".length)}`;
+  }
+
+  return factor;
+}
+
 function BailStrategyPageContent() {
   const router = useRouter();
   const [viewState, setViewState] = useState<ViewState>("form");
@@ -454,8 +499,8 @@ function BailStrategyPageContent() {
                     <path d="M24 6a18 18 0 0 1 18 18" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-semibold text-text-primary">Checking eligibility...</h2>
-                <p className="mt-3 text-sm leading-6 text-text-secondary">Analyzing sections, custody, and precedents.</p>
+                <h2 className="text-2xl font-semibold text-text-primary">Evaluating the case...</h2>
+                <p className="mt-3 text-sm leading-6 text-text-secondary">Reviewing the relevant provisions and case factors...</p>
               </div>
             </div>
           </section>
@@ -465,7 +510,6 @@ function BailStrategyPageContent() {
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Eligibility check</p>
                       <h2 className="mt-3 text-2xl font-semibold text-text-primary">Bail Eligibility Summary</h2>
                     </div>
                     <div className="flex flex-wrap gap-3">
@@ -483,57 +527,49 @@ function BailStrategyPageContent() {
                       {result.suretyLabel || `${formatCurrency(result.suretyRangeMin)} - ${formatCurrency(result.suretyRangeMax)}`}
                     </p>
                     <p className="mt-1 text-xs text-text-secondary opacity-80">
-                      (Indicative range based on similar cases; subject to court discretion)
+                      Indicative estimate. Exact surety is determined by the court.
                     </p>
                   </div>
 
                   <div className="rounded-3xl border border-border/50 bg-bg-card p-5 shadow-panel">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
-                        {result.authority === "DISCRETIONARY" ? "Discretionary Analysis" : "Authoritative Legal Basis"}
+                        {result.authority === "DISCRETIONARY" ? "Bail Assessment" : "Statutory Basis"}
                       </p>
-                      {result.authority ? (
+                      {result.authority && result.authority !== "DISCRETIONARY" ? (
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                           result.authority === "DETERMINISTIC"
                             ? "border border-accent/30 bg-accent/10 text-accent"
-                            : result.authority === "DISCRETIONARY"
-                            ? "border border-state-info/30 bg-state-info/10 text-state-info"
                             : "border border-state-warning/30 bg-state-warning/10 text-state-warning"
                         }`}>
                           {result.authority === "DETERMINISTIC"
-                            ? "Deterministic statutory finding"
-                            : result.authority === "DISCRETIONARY"
-                            ? "Discretionary analysis"
-                            : "Unresolved statutory finding"}
+                            ? "Statutory basis"
+                            : "Manual verification required"}
                         </span>
                       ) : null}
                     </div>
                     {result.authority === "DISCRETIONARY" ? (
                       <>
                         <p className="mt-3 text-sm font-medium leading-6 text-text-primary">
-                          Regular bail is discretionary in this case. The following factors may be relevant to the court&apos;s assessment.
+                          Bail is discretionary in this case. The following factors may influence the court&apos;s assessment.
                         </p>
                         {result.discretionaryFactors && result.discretionaryFactors.length > 0 && (
                           <ul className="mt-3 space-y-1.5">
                             {result.discretionaryFactors.map((factor, idx) => (
                               <li key={idx} className="flex gap-2 text-sm text-text-primary">
                                 <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-text-secondary opacity-60" />
-                                {factor}
+                                {formatDiscretionaryFactor(factor)}
                               </li>
                             ))}
                           </ul>
                         )}
-                        <p className="mt-3 text-xs text-text-secondary opacity-80">
-                          (No statutory entitlement or bar established; Groq analysis below is contextual only)
-                        </p>
                       </>
                     ) : (
                       <>
                         <p className="mt-3 text-sm font-medium leading-6 text-text-primary">
-                          {result.ruleSummary || (result.deterministicFindings?.supported ? "Evaluated against statutory bail provisions" : "Statutory classification unresolved by deterministic rules")}
-                        </p>
-                        <p className="mt-1 text-xs text-text-secondary opacity-80">
-                          (Legal eligibility established authoritatively by backend deterministic engine)
+                          {result.authority === "DETERMINISTIC_UNRESOLVED"
+                            ? "The applicable statutory classification could not be established from the information provided."
+                            : result.ruleSummary || (result.deterministicFindings?.supported ? "Evaluated against statutory bail provisions" : "The applicable statutory classification could not be established from the information provided.")}
                         </p>
                       </>
                     )}
@@ -543,7 +579,7 @@ function BailStrategyPageContent() {
                 <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <h3 className="text-lg font-semibold text-text-primary">Reasoning</h3>
-                    <span className="text-xs text-text-secondary">AI Contextual Analysis (Groq)</span>
+                    <span className="text-xs text-text-secondary">Analysis</span>
                   </div>
                   <div className="mt-5 space-y-4">
                     {result.reasoning?.map((point, idx) => (
@@ -571,7 +607,7 @@ function BailStrategyPageContent() {
                 {result.retrievedAuthorities && result.retrievedAuthorities.length > 0 ? (
                   <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <h3 className="text-lg font-semibold text-text-primary">Relevant Legal Authorities</h3>
+                      <h3 className="text-lg font-semibold text-text-primary">Related Case Law</h3>
                       <span className="text-xs text-text-secondary">Source references</span>
                     </div>
                     <div className="mt-5 space-y-4">
@@ -580,7 +616,7 @@ function BailStrategyPageContent() {
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-text-primary">{authority.caseName}</p>
                             <span className="text-[11px] text-text-secondary">
-                              {authority.provenance === "verified" ? "Verified source" : "Curated authority reference"}
+                              {authority.provenance === "verified" ? "Verified source" : "Curated reference"}
                             </span>
                           </div>
                           {authority.court || authority.citation || authority.date || authority.source ? (
@@ -607,14 +643,14 @@ function BailStrategyPageContent() {
                               rel="noopener noreferrer"
                               className="mt-3 inline-block text-xs text-accent underline underline-offset-4"
                             >
-                              View source
+                              View judgment
                             </a>
                           ) : null}
                         </div>
                       ))}
                     </div>
                     <p className="mt-4 text-xs leading-5 text-text-secondary">
-                      These authority references provide context only. They do not determine eligibility or replace verification against the current record and applicable law.
+                      These cases are provided as supporting references. Verify the cited authority against the current record and applicable law.
                     </p>
                   </div>
                 ) : null}
@@ -627,11 +663,11 @@ function BailStrategyPageContent() {
                       size="lg"
                       onClick={resetFormView}
                     >
-                      Return to form
+                      Edit matter details
                     </Button>
                   </div>
                   <p className="mt-4 text-xs leading-5 text-text-secondary">
-                    This structural analysis distinguishes authoritative deterministic statutory findings from AI contextual reasoning. Final bail outcomes depend on specific case facts, filings, and judicial discretion.
+                    Final bail outcomes depend on the specific facts, filings, and judicial discretion.
                   </p>
                 </div>
               </div>
