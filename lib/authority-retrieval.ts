@@ -1,5 +1,9 @@
 import type { LegalRuleOutput } from "./legal-rules";
-import type { AuthoritativeEligibilityResult, BailStrategyInput } from "./bail-strategy-engine";
+import {
+  labelForCustodyDuration,
+  type AuthoritativeEligibilityResult,
+  type BailStrategyInput,
+} from "./bail-strategy-engine";
 
 export type AuthorityProfile = "CASE_ANALYSIS" | "BAIL_ELIGIBILITY";
 export type AuthorityProvenance = "curated" | "verified" | "retrieved" | "unverified";
@@ -123,6 +127,7 @@ export type AuthorityRetrievalQuery = {
   offenseType?: string;
   bailType?: string;
   proceduralStage?: string;
+  custodyDuration?: string;
   custodyDays?: number;
   chargesheetFiled?: boolean;
   previousBail?: string;
@@ -220,7 +225,7 @@ type BailAuthorityQueryOptions = {
   input: BailStrategyInput;
   legalRules: LegalRuleOutput;
   authoritativeResult: AuthoritativeEligibilityResult;
-  custodyDays: number;
+  custodyDays: number | null;
   chargesheetFiled: boolean;
 };
 
@@ -246,7 +251,7 @@ export function buildBailAuthorityQuery({
   addIssue(issues, input.offenseType === "non-bailable" ? "non-bailable offence" : input.offenseType);
   addIssue(issues, labelForCourtStageIssue(input.courtStage));
   addIssue(issues, chargesheetFiled ? "chargesheet filed" : "investigation ongoing");
-  addIssue(issues, `custody ${custodyDays} days`);
+  addIssue(issues, `custody ${labelForCustodyDuration(input.custodyDuration)}`);
   addIssue(issues, input.previousBail === "none" ? "no prior bail rejection" : "previous bail history");
 
   if (legalRules.defaultBail.eligible === true) addIssue(issues, "default bail");
@@ -275,7 +280,8 @@ export function buildBailAuthorityQuery({
     sections,
     offenseType: input.offenseType,
     proceduralStage: input.courtStage,
-    custodyDays,
+    custodyDuration: input.custodyDuration,
+    ...(custodyDays === null ? {} : { custodyDays }),
     chargesheetFiled,
     previousBail: input.previousBail,
     accusedTags: input.accusedTags,

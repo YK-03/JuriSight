@@ -112,16 +112,6 @@ function normalizeBody(input: unknown): BailStrategyRequestBody | null {
   };
 }
 
-function parseCustodyDays(custodyDuration: string): number {
-  const val = custodyDuration.toLowerCase();
-  if (val.includes("under") || val.includes("30")) return 25;
-  if (val.includes("1 to 6") || val.includes("1-6")) return 90;
-  if (val.includes("6 to 12") || val.includes("6-12")) return 180;
-  if (val.includes("1 to 2") || val.includes("1-2")) return 365;
-  if (val.includes("over 2") || val.includes("2+")) return 730;
-  return 30; // safe default
-}
-
 function parseSections(sections: string): string[] {
   return sections
     .split(/[,\n]+/)
@@ -258,14 +248,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "offenseType is required." }, { status: 400 });
     }
 
-    const custodyDays = parseCustodyDays(body.custodyDuration ?? "");
+    // Step 1: custodyDuration is a user-selected range, not an exact day count.
+    // TODO(Step 2): make default-bail threshold evaluation range-aware.
+    const custodyDaysForLegacyRules: number | null = null;
     const parsedSections = parseSections(body.sections ?? "");
     const parsedAge = parseAge(body.age);
     const chargesheetFiled = isChargesheetFiledForBailStrategyStage(body.courtStage);
 
     const legalRules = runLegalRules({
       sections: parsedSections,
-      custodyDays,
+      custodyDays: custodyDaysForLegacyRules,
       chargesheetFiled,
       age: parsedAge,
       framework: body.legalFramework,
@@ -276,7 +268,7 @@ export async function POST(request: Request) {
     const authoritativeResult = determineAuthoritativeEligibility(
       legalRules,
       body,
-      custodyDays,
+      custodyDaysForLegacyRules,
       chargesheetFiled,
     );
 
@@ -284,7 +276,7 @@ export async function POST(request: Request) {
       input: body,
       legalRules,
       authoritativeResult,
-      custodyDays,
+      custodyDays: custodyDaysForLegacyRules,
       chargesheetFiled,
     });
 

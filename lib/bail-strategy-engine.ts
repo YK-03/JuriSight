@@ -119,7 +119,7 @@ export function labelForPreviousBail(value: PreviousBail): string {
 function buildDiscretionaryFactors(
   legalRules: LegalRuleOutput,
   body: BailStrategyInput,
-  custodyDays: number,
+  custodyDays: number | null,
   chargesheetFiled: boolean,
 ): string[] {
   const factors: string[] = [];
@@ -130,7 +130,7 @@ function buildDiscretionaryFactors(
     `Offense: Non-bailable${section ? ` (${section})` : ""}${severity ? `, Severity: ${severity}` : ""}`
   );
 
-  factors.push(`Custody served: ${custodyDays} days (${labelForCustodyDuration(body.custodyDuration)})`);
+  factors.push(`Custody duration: ${labelForCustodyDuration(body.custodyDuration)}`);
 
   factors.push(
     chargesheetFiled
@@ -159,7 +159,7 @@ function buildDiscretionaryFactors(
 export function determineAuthoritativeEligibility(
   legalRules: LegalRuleOutput,
   body: BailStrategyInput,
-  custodyDays: number,
+  custodyDays: number | null,
   chargesheetFiled: boolean,
 ): AuthoritativeEligibilityResult {
   const findings: DeterministicFindingsMetadata = {

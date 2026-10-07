@@ -36,7 +36,7 @@ export class CuratedAuthorityRetriever implements AuthorityRetriever {
       offenseType: query.offenseType,
       section: query.sections.join(", "),
       bailType: query.bailType,
-      custodyDuration: query.custodyDays == null ? undefined : `${query.custodyDays} days`,
+      custodyDuration: query.custodyDuration,
       proceduralStage: query.proceduralStage,
       previousBail: query.previousBail,
       cooperationLevel: query.accusedTags?.join(", "),
