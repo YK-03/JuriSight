@@ -300,24 +300,24 @@ function BailStrategyPageContent() {
               </Link>
             </Button>
             <div className="rounded-3xl border border-border/50 bg-bg-card p-8 shadow-panel">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Bail Strategy System</p>
-              <h1 className="mt-3 text-3xl font-semibold text-text-primary">Check bail eligibility with filing strategy</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Bail strategy</p>
+              <h1 className="mt-3 text-3xl font-semibold text-text-primary">Bail eligibility assessment</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-text-secondary">
-                Build a structured Indian-law bail brief covering custody posture, likely grounds, precedents, and the most suitable court strategy.
+                Review custody, potential grounds, relevant case law, and court strategy for the matter.
               </p>
             </div>
           </div>
 
           <section className={viewState === "form" ? "block" : "hidden"}>
             <div className="rounded-2xl border border-accent/25 bg-accent/10 px-5 py-4 text-sm leading-6 text-text-primary">
-              This tool supports legal preparation and internal review. Final advice and filings must be checked against the current statute, court record, and local practice.
+              Use this assessment to support preparation. Check final advice and filings against the current statute, court record, and local practice.
             </div>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-6">
               <section className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                 <div className="mb-6">
                   <h2 className="text-lg font-semibold text-text-primary">Core matter details</h2>
-                  <p className="mt-1 text-sm text-text-secondary">Enter the legal posture first, then add supporting context.</p>
+                  <p className="mt-1 text-sm text-text-secondary">Start with the matter details, then add any relevant context.</p>
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
@@ -608,7 +608,6 @@ function BailStrategyPageContent() {
                   <div className="rounded-3xl border border-border/50 bg-bg-card p-6 shadow-panel">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="text-lg font-semibold text-text-primary">Related Case Law</h3>
-                      <span className="text-xs text-text-secondary">Source references</span>
                     </div>
                     <div className="mt-5 space-y-4">
                       {result.retrievedAuthorities.map((authority) => (
@@ -616,7 +615,7 @@ function BailStrategyPageContent() {
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-text-primary">{authority.caseName}</p>
                             <span className="text-[11px] text-text-secondary">
-                              {authority.provenance === "verified" ? "Verified source" : "Curated reference"}
+                              {authority.provenance === "verified" ? "Verified source" : "Reference"}
                             </span>
                           </div>
                           {authority.court || authority.citation || authority.date || authority.source ? (
