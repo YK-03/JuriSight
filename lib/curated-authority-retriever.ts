@@ -3,6 +3,7 @@ import {
   retrievePrecedents,
   type PrecedentCaseData,
 } from "./precedent-retrieval";
+import { buildSearchLink } from "./precedents";
 import type { AuthorityRetriever, AuthorityRetrievalQuery, RetrievedAuthority } from "./authority-retrieval";
 
 function compact(value: string): string {
@@ -51,6 +52,7 @@ export class CuratedAuthorityRetriever implements AuthorityRetriever {
           legalPrinciple: precedent.principle,
           matchedIssues: issues.length > 0 ? issues : [...querySignals.signals],
         },
+        judgmentUrl: precedent.sourceUrl || buildSearchLink(precedent.caseName),
         provenance: "curated" as const,
       };
     });

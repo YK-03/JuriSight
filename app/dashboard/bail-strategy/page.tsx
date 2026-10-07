@@ -642,7 +642,7 @@ function BailStrategyPageContent() {
                               rel="noopener noreferrer"
                               className="mt-3 inline-block text-xs text-accent underline underline-offset-4"
                             >
-                              View judgment
+                              Search Indian Kanoon
                             </a>
                           ) : null}
                         </div>
