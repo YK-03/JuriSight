@@ -19,7 +19,10 @@ async function main() {
   const progressive = await evaluateBailQueryStrategy("progressive");
   const optimized = await evaluateBailQueryStrategy("optimized");
 
-  check("All required scenarios are included", bailStrategyScenarios.length === 10);
+  check(
+    "All required scenarios are included",
+    bailStrategyScenarios.length >= 10 && bailStrategyScenarios.some((scenario) => scenario.id === "default-bail-range"),
+  );
   check("Progressive query count stays bounded", progressive.maxQueriesObserved <= MAX_BAIL_AUTHORITY_QUERY_VARIANTS);
   check("Optimized query count stays bounded", optimized.maxQueriesObserved <= MAX_BAIL_AUTHORITY_QUERY_VARIANTS);
   check("Baseline uses one query per scenario", baseline.maxQueriesObserved === 1);

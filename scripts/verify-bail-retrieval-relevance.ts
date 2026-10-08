@@ -1,4 +1,5 @@
 import { evaluateAllBailRetrievalRelevance } from "../lib/evaluation/bail-retrieval-relevance-evaluation";
+import { bailStrategyScenarios } from "../lib/evaluation/bail-scenarios";
 
 function assertInvariant(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -9,7 +10,7 @@ async function main() {
   const relevant = summary.results.find((result) => result.scenarioId === "standard-non-bailable");
   const invalid = summary.results.find((result) => result.scenarioId === "unsupported-offence-framework");
 
-  assertInvariant(summary.total === 10, "expected all 10 shared bail scenarios");
+  assertInvariant(summary.total === bailStrategyScenarios.length, "expected all shared bail scenarios");
   assertInvariant(summary.overallPassed, "relevance evaluation contains failed scenarios");
   assertInvariant(Boolean(relevant && relevant.groundedAuthorityCount === 1), "relevant authority was not grounded");
   assertInvariant(Boolean(relevant && relevant.irrelevantAuthorityCount === 1), "irrelevant authority was not classified as ungrounded");
