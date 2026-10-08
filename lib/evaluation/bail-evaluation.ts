@@ -59,6 +59,7 @@ export function runBailScenarioDeterministicPipeline(
   const legalRules = runLegalRules({
     sections: parseSections(input.sections),
     custodyDays: execution.custodyDays,
+    custodyDuration: input.custodyDuration,
     chargesheetFiled: execution.chargesheetFiled,
     age: parseAge(input.age),
     framework: input.legalFramework,

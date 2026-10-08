@@ -5,6 +5,7 @@ export type QuantityCategory = "small" | "commercial" | "unknown";
 export type JuvenileRoute = "JJB" | "SessionsCourt" | "Magistrate";
 export type LegalStatute = "IPC" | "BNS" | "CRPC" | "BNSS" | "NDPS" | "PMLA" | "UNKNOWN";
 export type DefaultBailThreshold = 60 | 90 | null;
+export type CustodyDuration = "under-30" | "1-6mo" | "6-12mo" | "1-2yr" | "over-2yr";
 
 export type LegalRuleIdentity = {
   statute: LegalStatute;
@@ -52,6 +53,7 @@ export interface JuvenileResult {
 export interface LegalRuleInput {
   sections: Array<string | LegalRuleIdentity>;
   custodyDays: number | null;
+  custodyDuration?: CustodyDuration;
   chargesheetFiled: boolean;
   age: number;
   framework?: LegalFramework;
@@ -220,6 +222,7 @@ export function checkDefaultBail(
   defaultBailThreshold: DefaultBailThreshold,
   custodyDays: number | null,
   chargesheetFiled: boolean,
+  custodyDuration?: CustodyDuration,
 ): DefaultBailResult {
   if (defaultBailThreshold === null) {
     return {
@@ -243,6 +246,48 @@ export function checkDefaultBail(
     }
 
     const daysRequired = defaultBailThreshold;
+
+    // Range-aware classification: classify the custody range against the threshold
+    // without manufacturing an exact day count.
+    if (custodyDuration === "under-30") {
+      // Maximum possible (29 days) is below both 60-day and 90-day thresholds.
+      return {
+        eligible: false,
+        daysRequired,
+        daysServed: null,
+        daysRemaining: null,
+        note: `Custody under 30 days; statutory default bail threshold of ${daysRequired} days not yet satisfied`,
+      };
+    }
+
+    if (custodyDuration === "1-6mo") {
+      // Range spans both the 60-day and 90-day thresholds — cannot be resolved
+      // deterministically without exact custody dates.
+      return {
+        eligible: null,
+        daysRequired,
+        daysServed: null,
+        daysRemaining: null,
+        note: `Custody range (1–6 months) spans the ${daysRequired}-day default bail threshold; eligibility indeterminate without exact custody dates`,
+      };
+    }
+
+    if (
+      custodyDuration === "6-12mo" ||
+      custodyDuration === "1-2yr" ||
+      custodyDuration === "over-2yr"
+    ) {
+      // Minimum of these ranges (183 days) exceeds both 60-day and 90-day thresholds.
+      return {
+        eligible: true,
+        daysRequired,
+        daysServed: null,
+        daysRemaining: 0,
+        note: `Statutory default bail threshold of ${daysRequired} days satisfied (custody range: ${custodyDuration} — minimum exceeds threshold)`,
+      };
+    }
+
+    // No range supplied — preserve Step 1 conservative behavior.
     return {
       eligible: null,
       daysRequired,
@@ -444,12 +489,21 @@ function buildPromptInjection(output: {
       `- ${output.defaultBail.note}`,
     );
   } else if (output.defaultBail.daysServed === null) {
-    const chargesheetBarsDefaultBail = output.defaultBail.note === "Chargesheet already filed";
-    lines.push(
-      `- Eligible: [${chargesheetBarsDefaultBail ? "no" : "not computed"}]`,
-      "- Days served: [unspecified — not assumed]",
-      `- ${output.defaultBail.note}`,
-    );
+    if (output.defaultBail.eligible === true) {
+      // Range-confirmed: the custody range definitively satisfies the threshold,
+      // but no exact day count was manufactured.
+      lines.push(
+        `- Eligible: [yes — custody range satisfies ${output.defaultBail.daysRequired}-day threshold]`,
+        "- Days served: [unspecified — satisfied by custody range, not assumed]",
+        `- ${output.defaultBail.note}`,
+      );
+    } else {
+      lines.push(
+        `- Eligible: [${output.defaultBail.eligible === false ? "no" : "not computed"}]`,
+        "- Days served: [unspecified — not assumed]",
+        `- ${output.defaultBail.note}`,
+      );
+    }
   } else {
     lines.push(
       `- Eligible: [${formatYesNo(output.defaultBail.eligible === true)}]`,
@@ -519,7 +573,7 @@ export function runLegalRules(input: LegalRuleInput): LegalRuleOutput {
     return section.statute === "IPC" || section.statute === "BNS" || section.statute === "NDPS" || section.statute === "PMLA";
   });
   const defaultBailRules = evaluateDefaultBailRules(ruleSections);
-  const defaultBail = checkDefaultBail(defaultBailRules.defaultBailThreshold, input.custodyDays, input.chargesheetFiled);
+  const defaultBail = checkDefaultBail(defaultBailRules.defaultBailThreshold, input.custodyDays, input.chargesheetFiled, input.custodyDuration);
   const offenseClass = classifyOffense(ruleSections, framework);
   const unresolvedRuleIdentities = ruleSections.filter((identity) =>
     !SECTION_RULES[ruleKey(identity)] && !DEFAULT_BAIL_ONLY_RULES[ruleKey(identity)],

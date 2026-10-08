@@ -248,8 +248,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "offenseType is required." }, { status: 400 });
     }
 
-    // Step 1: custodyDuration is a user-selected range, not an exact day count.
-    // TODO(Step 2): make default-bail threshold evaluation range-aware.
+    // custodyDuration is a user-selected range. Exact custodyDays is intentionally null —
+    // default-bail threshold evaluation uses range-aware classification (Step 2).
     const custodyDaysForLegacyRules: number | null = null;
     const parsedSections = parseSections(body.sections ?? "");
     const parsedAge = parseAge(body.age);
@@ -258,6 +258,7 @@ export async function POST(request: Request) {
     const legalRules = runLegalRules({
       sections: parsedSections,
       custodyDays: custodyDaysForLegacyRules,
+      custodyDuration: body.custodyDuration,
       chargesheetFiled,
       age: parsedAge,
       framework: body.legalFramework,

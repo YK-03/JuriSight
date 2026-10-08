@@ -16,7 +16,7 @@ export type BailScenarioExpectedOutcome = {
  * scenario directly executable without changing the production route.
  */
 export type BailScenarioExecution = {
-  custodyDays: number;
+  custodyDays: number | null;
   chargesheetFiled: boolean;
   ndpsQuantity?: QuantityCategory;
   pmlaAmount?: number;
@@ -140,6 +140,41 @@ export const bailStrategyScenarios: readonly BailStrategyEvaluationScenario[] = 
       "pre-chargesheet",
       "investigation ongoing",
       "custody 90 days",
+      "no prior bail rejection",
+      "default bail",
+    ],
+    offlineRetrievalMode: "provider-rejection",
+  },
+  {
+    id: "default-bail-range",
+    description: "Production-shaped range-based default bail scenario without an exact custody day count.",
+    input: {
+      sections: "IPC 302",
+      legalFramework: "LEGACY_IPC_CRPC",
+      offenseType: "non-bailable",
+      custodyDuration: "6-12mo",
+      courtStage: "no-chargesheet",
+      previousBail: "none",
+      accusedTags: [],
+      age: "30",
+      firOrCnr: syntheticCaseId("default-bail-range"),
+      additionalContext: "Synthetic matter with investigation ongoing.",
+    },
+    execution: {
+      custodyDays: null,
+      chargesheetFiled: false,
+    },
+    expected: {
+      eligibility: "Likely eligible",
+      authority: "DETERMINISTIC",
+    },
+    expectedRetrievalIssues: [
+      "LEGACY_IPC_CRPC",
+      "IPC 302",
+      "non-bailable offence",
+      "pre-chargesheet",
+      "investigation ongoing",
+      "custody 6 to 12 months",
       "no prior bail rejection",
       "default bail",
     ],

@@ -1,4 +1,4 @@
-import type { LegalRuleOutput, Severity } from "./legal-rules";
+import type { LegalRuleOutput, Severity, CustodyDuration } from "./legal-rules";
 import type { LegalFramework } from "./legal-framework";
 import type { BailStrategyCourtStage } from "./section-preservation";
 import { buildSearchLink } from "./precedents";
@@ -8,8 +8,8 @@ import {
   type PrecedentCaseData,
 } from "./precedent-retrieval";
 
+export type { CustodyDuration } from "./legal-rules";
 export type OffenseType = "non-bailable" | "bailable" | "ndps" | "uapa" | "pmla" | "unknown";
-export type CustodyDuration = "under-30" | "1-6mo" | "6-12mo" | "1-2yr" | "over-2yr";
 export type PreviousBail = "none" | "1-rejected" | "2plus-rejected" | "granted-cancelled";
 export type Eligibility = "Likely eligible" | "Uncertain" | "Unlikely eligible";
 
