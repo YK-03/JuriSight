@@ -54,6 +54,7 @@ interface BailStrategyResult {
     specialActBar?: boolean;
     isJuvenile?: boolean;
   };
+  manualVerificationWarnings?: string[];
   retrievedAuthorities?: RetrievedAuthority[];
 }
 
@@ -511,6 +512,24 @@ function BailStrategyPageContent() {
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <h2 className="mt-3 text-2xl font-semibold text-text-primary">Bail Eligibility Summary</h2>
+                    {result.manualVerificationWarnings && result.manualVerificationWarnings.length > 0 ? (
+                      <div className="mt-4 rounded-2xl border border-state-warning/30 bg-state-warning/10 p-4">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-state-warning" />
+                          <h3 className="text-xs font-semibold uppercase tracking-wider text-state-warning">
+                            Manual Verification Warnings ({result.manualVerificationWarnings.length})
+                          </h3>
+                        </div>
+                        <ul className="mt-2.5 space-y-1">
+                          {result.manualVerificationWarnings.map((warning, idx) => (
+                            <li key={idx} className="flex gap-2 text-xs text-text-primary">
+                              <span className="mt-1.5 h-1 w-1 flex-none rounded-full bg-state-warning" />
+                              {warning}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     </div>
                     <div className="flex flex-wrap gap-3">
                       <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${eligibilityBadgeClasses(result.eligibility as Eligibility)}`}>
@@ -613,9 +632,24 @@ function BailStrategyPageContent() {
                       {result.retrievedAuthorities.map((authority) => (
                         <div key={authority.authorityId} className="rounded-2xl border border-border/50 bg-bg-primary p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-text-primary">{authority.caseName}</p>
+                            {authority.judgmentUrl ? (
+                              <a
+                                href={authority.judgmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-semibold text-accent underline-offset-4 hover:text-accent hover:underline"
+                              >
+                                {authority.caseName}
+                              </a>
+                            ) : (
+                              <p className="text-sm font-semibold text-text-primary">{authority.caseName}</p>
+                            )}
                             <span className="text-[11px] text-text-secondary">
-                              {authority.provenance === "verified" ? "Verified source" : "Reference"}
+                              {authority.provenance === "verified"
+                                ? "Verified source"
+                                : authority.provenance === "verified-metadata"
+                                ? "Metadata reference"
+                                : "Reference"}
                             </span>
                           </div>
                           {authority.court || authority.citation || authority.date || authority.source ? (
@@ -634,16 +668,6 @@ function BailStrategyPageContent() {
                                 </span>
                               ))}
                             </div>
-                          ) : null}
-                          {authority.judgmentUrl ? (
-                            <a
-                              href={authority.judgmentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-3 inline-block text-xs text-accent underline underline-offset-4"
-                            >
-                              Search Indian Kanoon
-                            </a>
                           ) : null}
                         </div>
                       ))}

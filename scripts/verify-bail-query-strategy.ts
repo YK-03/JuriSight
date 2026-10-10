@@ -51,9 +51,9 @@ async function main() {
     check(`${scenario.id} query variants are deterministic`, JSON.stringify(variants) === JSON.stringify(variantsAgain));
     check(`${scenario.id} optimized query variants are deterministic`, JSON.stringify(optimizedVariants) === JSON.stringify(optimizedVariantsAgain));
     check(`${scenario.id} preserves core section identifiers`, variants.every((variant) => sections.every((section) => variant.queryText.includes(section))));
-    check(`${scenario.id} optimized queries preserve framework and sections`, optimizedVariants.every((variant) =>
+    check(`${scenario.id} optimized queries preserve sections and remove internal framework identifiers`, optimizedVariants.every((variant) =>
       sections.every((section) => variant.queryText.includes(section))
-      && (!baseQuery.legalFramework || variant.queryText.includes(baseQuery.legalFramework))));
+      && !/LEGACY_IPC_CRPC|CURRENT_BNS_BNSS|UNSPECIFIED/.test(variant.queryText)));
     check(`${scenario.id} removes procedural overload`, variants.every((variant) => !/custody \d+ days|chargesheet filed|court|prior bail/i.test(variant.queryText)));
     check(`${scenario.id} optimized queries remove procedural overload`, optimizedVariants.every((variant) => !/custody \d+ days|chargesheet filed|court|prior bail/i.test(variant.queryText)));
   }

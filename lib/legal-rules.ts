@@ -2,6 +2,7 @@ import { defaultBailProvisionForFramework, type LegalFramework } from "./legal-f
 
 export type Severity = "minor" | "moderate" | "serious" | "severe";
 export type QuantityCategory = "small" | "commercial" | "unknown";
+export const QUANTITY_CATEGORIES = ["small", "commercial", "unknown"] as const;
 export type JuvenileRoute = "JJB" | "SessionsCourt" | "Magistrate";
 export type LegalStatute = "IPC" | "BNS" | "CRPC" | "BNSS" | "NDPS" | "PMLA" | "UNKNOWN";
 export type DefaultBailThreshold = 60 | 90 | null;
@@ -55,7 +56,7 @@ export interface LegalRuleInput {
   custodyDays: number | null;
   custodyDuration?: CustodyDuration;
   chargesheetFiled: boolean;
-  age: number;
+  age: number | null;
   framework?: LegalFramework;
   ndpsQuantity?: QuantityCategory;
   pmlaAmount?: number;
@@ -147,7 +148,13 @@ function parseRuleIdentity(value: string | LegalRuleIdentity, framework: LegalFr
   }
 
   const normalized = normalizeSection(value);
-  const match = normalized.match(/^(IPC|BNS|CRPC|BNSS|NDPS|PMLA)\s+(?:SECTION[S]?\s+)?([0-9]+[A-Z]*)(?:\s*\(([^)]+)\))?$/i);
+  const directMatch = normalized.match(/^(IPC|BNS|CRPC|BNSS|NDPS|PMLA)\s+(?:ACT\s+)?(?:SECTION[S]?\s+)?([0-9]+[A-Z]*)(?:\s*\(([^)]+)\))?$/i);
+  const sectionFirstMatch = normalized.match(/^SECTION[S]?\s+([0-9]+[A-Z]*)(?:\s*\(([^)]+)\))?\s+(?:OF\s+)?(?:THE\s+)?(IPC|BNS|CRPC|BNSS|NDPS|PMLA)(?:\s+ACT)?$/i);
+  const match = directMatch
+    ? [directMatch[0], directMatch[1], directMatch[2], directMatch[3]]
+    : sectionFirstMatch
+    ? [sectionFirstMatch[0], sectionFirstMatch[3], sectionFirstMatch[1], sectionFirstMatch[2]]
+    : null;
   if (match) {
     const statute = match[1].toUpperCase() as LegalStatute;
     return { statute, section: match[2].toUpperCase(), subsection: match[3]?.trim() };
@@ -440,7 +447,15 @@ export function checkPMLAConditions(
  * Flags whether the accused must be routed through the Juvenile Justice Board
  * based solely on age.
  */
-export function checkJuvenileFlag(age: number): JuvenileResult {
+export function checkJuvenileFlag(age: number | null): JuvenileResult {
+  if (age === null || !Number.isFinite(age) || !Number.isInteger(age) || age < 0) {
+    return {
+      isJuvenile: false,
+      routeTo: "SessionsCourt",
+      note: "Age is unknown; juvenile status was not assumed",
+    };
+  }
+
   if (age < 18) {
     return {
       isJuvenile: true,

@@ -5,7 +5,7 @@ import type {
 } from "./authority-retrieval";
 
 const ECOURTSINDIA_API_BASE = "https://webapi.ecourtsindia.com";
-const MAX_SEARCH_RESULTS = 1;
+const MAX_SEARCH_RESULTS = 5;
 const MAX_PASSAGE_LENGTH = 4000;
 
 type FetchLike = typeof fetch;
@@ -67,9 +67,12 @@ function mapVerifiedCandidate(
   const authorityDate = date ?? firstString(order.orderDate, order.judgmentDate);
   const judgmentUrl = documentedOrderUrl(authorityId || "", order.orderUrl);
   const relevantPassage = sourceText(data, caseData);
+  const metadataReference = caseName && court && authorityDate
+    ? `Order passed by ${court} on ${authorityDate} in ${caseName}.`
+    : undefined;
 
   // This is the documented authenticated provider endpoint, not a public direct PDF URL.
-  if (!caseName || !authorityId || !court || !authorityDate || !judgmentUrl || !relevantPassage) {
+  if (!caseName || !authorityId || !court || !authorityDate || !judgmentUrl || (!relevantPassage && !metadataReference)) {
     return undefined;
   }
 
@@ -81,7 +84,8 @@ function mapVerifiedCandidate(
     date: authorityDate,
     source: "eCourtsIndia",
     judgmentUrl,
-    relevantPassage,
+    relevantPassage: relevantPassage ?? metadataReference!,
+    contentStatus: relevantPassage ? "substantive" : "metadata-only",
   };
 }
 
@@ -101,20 +105,27 @@ export class EcourtsIndiaAuthorityProvider implements VerifiedAuthoritySource {
       ? searchResponse.data as Record<string, unknown>
       : {};
     const results = Array.isArray(searchData.results) ? searchData.results : [];
-    const firstResult = results[0];
-    if (!firstResult || typeof firstResult !== "object") return [];
+    for (const result of results.slice(0, MAX_SEARCH_RESULTS)) {
+      if (!result || typeof result !== "object") continue;
 
-    const searchRecord = firstResult as Record<string, unknown>;
-    const cnr = firstString(searchRecord.cnr);
-    if (!cnr) return [];
+      const searchRecord = result as Record<string, unknown>;
+      const cnr = firstString(searchRecord.cnr);
+      if (!cnr) continue;
 
-    const detailUrl = new URL(`${ECOURTSINDIA_API_BASE}/api/partner/case/${encodeURIComponent(cnr)}`);
-    const detailResponse = await this.requestJson(detailUrl, apiKey);
-    const detailData = detailResponse.data && typeof detailResponse.data === "object"
-      ? detailResponse.data as Record<string, unknown>
-      : {};
-    const candidate = mapVerifiedCandidate(searchRecord, detailData);
-    return candidate ? [candidate] : [];
+      try {
+        const detailUrl = new URL(`${ECOURTSINDIA_API_BASE}/api/partner/case/${encodeURIComponent(cnr)}`);
+        const detailResponse = await this.requestJson(detailUrl, apiKey);
+        const detailData = detailResponse.data && typeof detailResponse.data === "object"
+          ? detailResponse.data as Record<string, unknown>
+          : {};
+        const candidate = mapVerifiedCandidate(searchRecord, detailData);
+        if (candidate) return [candidate];
+      } catch {
+        continue;
+      }
+    }
+
+    return [];
   }
 
   private async requestJson(url: URL, apiKey: string): Promise<Record<string, unknown>> {

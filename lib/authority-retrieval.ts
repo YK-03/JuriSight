@@ -6,7 +6,8 @@ import {
 } from "./bail-strategy-engine";
 
 export type AuthorityProfile = "CASE_ANALYSIS" | "BAIL_ELIGIBILITY";
-export type AuthorityProvenance = "curated" | "verified" | "retrieved" | "unverified";
+export type AuthorityProvenance = "curated" | "verified" | "verified-metadata" | "retrieved" | "unverified";
+export type AuthorityContentStatus = "substantive" | "metadata-only";
 
 export const MAX_BAIL_AUTHORITY_QUERY_VARIANTS = 3;
 export const MAX_BAIL_AUTHORITY_SEARCH_REQUESTS_PER_SCENARIO = MAX_BAIL_AUTHORITY_QUERY_VARIANTS;
@@ -30,6 +31,7 @@ export type RetrievedAuthority = {
   source?: string;
   relevantSections?: string[];
   relevantPassage?: string;
+  contentStatus?: AuthorityContentStatus;
   derived?: DerivedAuthorityInterpretation;
   provenance: AuthorityProvenance;
 };
@@ -45,6 +47,7 @@ export type VerifiedAuthorityCandidate = {
   source: string;
   judgmentUrl: string;
   relevantPassage: string;
+  contentStatus?: AuthorityContentStatus;
   authorityLevel?: "binding" | "persuasive" | "unknown";
   relevantSections?: string[];
 };
@@ -52,7 +55,7 @@ export type VerifiedAuthorityCandidate = {
 export type VerifiedAuthority = Omit<VerifiedAuthorityCandidate, "citation" | "officialIdentifier"> & {
   citation?: string;
   officialIdentifier?: string;
-  provenance: "verified";
+  provenance: "verified" | "verified-metadata";
 };
 
 export type VerifiedAuthorityValidation =
@@ -61,6 +64,12 @@ export type VerifiedAuthorityValidation =
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+const INTERNAL_FRAMEWORK_IDENTIFIER = /\b(?:LEGACY_IPC_CRPC|CURRENT_BNS_BNSS|UNSPECIFIED)\b/gi;
+
+function sanitizeExternalQueryText(value: string): string {
+  return value.replace(INTERNAL_FRAMEWORK_IDENTIFIER, "").replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -113,9 +122,10 @@ export function validateVerifiedAuthority(input: unknown): VerifiedAuthorityVali
       source: candidate.source!.trim(),
       judgmentUrl: candidate.judgmentUrl!.trim(),
       relevantPassage: candidate.relevantPassage!.trim(),
+      contentStatus: candidate.contentStatus ?? "substantive",
       ...(candidate.authorityLevel ? { authorityLevel: candidate.authorityLevel } : {}),
       ...(candidate.relevantSections ? { relevantSections: candidate.relevantSections } : {}),
-      provenance: "verified",
+      provenance: candidate.contentStatus === "metadata-only" ? "verified-metadata" : "verified",
     },
   };
 }
@@ -218,7 +228,11 @@ export function selectVerifiedOrCuratedAuthorities(
   verified: VerifiedAuthority[],
   curated: RetrievedAuthority[],
 ): RetrievedAuthority[] {
-  return verified.length > 0 ? verified : curated;
+  return [...verified, ...curated]
+    .filter((authority, index, authorities) =>
+      authorities.findIndex((candidate) => candidate.authorityId === authority.authorityId) === index,
+    )
+    .slice(0, 4);
 }
 
 type BailAuthorityQueryOptions = {
@@ -273,7 +287,7 @@ export function buildBailAuthorityQuery({
   if (/economic|financial|fraud|cheating|money laundering/.test(context)) addIssue(issues, "economic offence");
   if (/arrest|detention|remand|custody/.test(context)) addIssue(issues, "arrest and detention");
 
-  const queryText = issues.join(" ");
+  const queryText = sanitizeExternalQueryText(issues.join(" "));
   return {
     profile,
     legalFramework: input.legalFramework,
@@ -333,7 +347,7 @@ function withIssues(query: AuthorityRetrievalQuery, issues: string[]): Authority
   return {
     ...query,
     issues: normalized,
-    queryText: normalized.join(" "),
+    queryText: sanitizeExternalQueryText(normalized.join(" ")),
   };
 }
 

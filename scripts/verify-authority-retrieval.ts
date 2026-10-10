@@ -1,5 +1,6 @@
 import {
   buildBailAuthorityQuery,
+  buildOptimizedProgressiveBailAuthorityQueries,
   retrieveAuthoritiesSafely,
   retrieveVerifiedAuthorities,
   selectVerifiedOrCuratedAuthorities,
@@ -51,6 +52,12 @@ const query = buildBailAuthorityQuery({ input, legalRules, authoritativeResult, 
 check("Bail Strategy selects BAIL_ELIGIBILITY", query.profile === "BAIL_ELIGIBILITY");
 check("Query is issue-oriented", query.queryText.includes("IPC 420") && query.queryText.includes("chargesheet filed"));
 check("Query does not include the complete narrative", !query.queryText.includes("Chargesheet filed; trial delay is expected"));
+check("External query removes internal framework identifiers", !query.queryText.includes("LEGACY_IPC_CRPC") && !query.queryText.includes("UNSPECIFIED"));
+check("External query preserves statutory and legal terms", query.queryText.includes("IPC 420") && query.queryText.includes("chargesheet filed"));
+check(
+  "Optimized external queries remove internal framework identifiers",
+  buildOptimizedProgressiveBailAuthorityQueries(query).every((variant) => !/LEGACY_IPC_CRPC|CURRENT_BNS_BNSS|UNSPECIFIED/.test(variant.queryText)),
+);
 
 const authorities = await curatedAuthorityRetriever.retrieve(query);
 check("Curated records adapt to RetrievedAuthority", authorities.length > 0 && authorities.every((item) => item.provenance === "curated"));
@@ -94,6 +101,53 @@ try {
   else process.env.ECOURTSINDIA_API_KEY = originalApiKey;
 }
 
+const multiResultDetails: Record<string, unknown> = {
+  BAD001: { data: { courtCaseData: { cnr: "BAD001" } } },
+  BAD002: { data: { courtCaseData: { cnr: "BAD002", courtName: "Test Court" } } },
+  VALID003: {
+    data: {
+      courtCaseData: {
+        cnr: "VALID003",
+        courtName: "High Court",
+        decisionDate: "2024-02-03",
+        judgmentOrders: [{ orderDate: "2024-02-03", orderUrl: "order-3.pdf" }],
+      },
+    },
+  },
+};
+let searchPageSize = "";
+const multiResultProvider = new EcourtsIndiaAuthorityProvider(async (url) => {
+  if (url.pathname.endsWith("/search")) {
+    searchPageSize = url.searchParams.get("pageSize") ?? "";
+    return new Response(JSON.stringify({
+      data: {
+        results: [
+          { cnr: "BAD001", petitioners: ["Invalid One"], respondents: ["State"] },
+          { cnr: "BAD002", petitioners: ["Invalid Two"], respondents: ["State"] },
+          { cnr: "VALID003", petitioners: ["Valid Three"], respondents: ["State"] },
+        ],
+      },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+
+  const cnr = decodeURIComponent(url.pathname.split("/").at(-1) ?? "");
+  return new Response(JSON.stringify(multiResultDetails[cnr] ?? {}), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+});
+process.env.ECOURTSINDIA_API_KEY = "test-only-key";
+try {
+  const multiResultAuthorities = await retrieveVerifiedAuthorities(multiResultProvider, query);
+  check("eCourts searches a bounded window of five results", searchPageSize === "5");
+  check("eCourts continues past invalid results and returns the third valid result", multiResultAuthorities.length === 1 && multiResultAuthorities[0].authorityId === "VALID003");
+  check("Verified order without markdown uses metadata reference", multiResultAuthorities[0].relevantPassage === "Order passed by High Court on 2024-02-03 in Valid Three v State.");
+  check("Metadata-only order uses distinct provenance", multiResultAuthorities[0].provenance === "verified-metadata" && multiResultAuthorities[0].contentStatus === "metadata-only");
+} finally {
+  if (originalApiKey === undefined) delete process.env.ECOURTSINDIA_API_KEY;
+  else process.env.ECOURTSINDIA_API_KEY = originalApiKey;
+}
+
 const modelLikeAuthority = { caseName: "Invented Case", citation: "Invented Citation" } as Record<string, unknown>;
 check("Model-like authority metadata is not accepted", !authorities.some((item) => item.caseName === modelLikeAuthority.caseName || item.citation === modelLikeAuthority.citation));
 
@@ -111,7 +165,14 @@ const completeValidation = validateVerifiedAuthority(completeVerifiedCandidate);
 check("Complete eCourts source metadata passes validation without legal principle", completeValidation.ok);
 const verifiedFixture = completeValidation.ok ? completeValidation.authority : undefined;
 check("Verified provider result is accepted and returned as verified", Boolean(verifiedFixture?.provenance === "verified"));
-check("Verified authorities are preferred over curated results", selectVerifiedOrCuratedAuthorities(verifiedFixture ? [verifiedFixture] : [], authorities).every((item) => item.provenance === "verified"));
+const mergedAuthorities = selectVerifiedOrCuratedAuthorities(
+  verifiedFixture ? [verifiedFixture] : [],
+  verifiedFixture ? [{ ...authorities[0], authorityId: verifiedFixture.authorityId }, ...authorities] : authorities,
+);
+check("Verified authorities are ordered before curated results", mergedAuthorities[0]?.provenance === "verified");
+check("Verified and curated authorities are merged", mergedAuthorities.some((item) => item.provenance === "verified") && mergedAuthorities.some((item) => item.provenance === "curated"));
+check("Merged authorities deduplicate by stable authority identifier", mergedAuthorities.filter((item) => item.authorityId === verifiedFixture?.authorityId).length === 1);
+check("Merged authorities are capped at four", mergedAuthorities.length <= 4);
 check("No verified result falls back to curated", selectVerifiedOrCuratedAuthorities([], authorities).every((item) => item.provenance === "curated"));
 check("Verified authority without URL fails", !validateVerifiedAuthority({ ...completeVerifiedCandidate, judgmentUrl: "" }).ok);
 check("Verified authority without CNR/official identifier fails", !validateVerifiedAuthority({ ...completeVerifiedCandidate, authorityId: "", officialIdentifier: undefined }).ok);

@@ -50,7 +50,13 @@ check("Bare 3 does not trigger PMLA logic", rules(["3"]).offenseClass.hasPMLA ==
 
 const parsedNdps = parseSuppliedSections("NDPS 21", "UNSPECIFIED");
 const parsedBare = parseSuppliedSections("21", "UNSPECIFIED");
+const ndpsActRules = rules(["NDPS Act Section 21"]);
+const sectionOfNdpsRules = rules(["Section 21 of the NDPS Act"]);
+const sectionNdpsRules = rules(["Section 21 NDPS Act"]);
 check("Section parsing emits a qualified NDPS identity", parsedNdps.ruleIdentities[0]?.statute === "NDPS" && parsedNdps.ruleIdentities[0]?.section === "21");
+check("NDPS Act Section phrasing is recognized", ndpsActRules.recognizedRuleIdentities[0]?.statute === "NDPS" && ndpsActRules.recognizedRuleIdentities[0]?.section === "21");
+check("Section of the NDPS Act phrasing is recognized", sectionOfNdpsRules.recognizedRuleIdentities[0]?.statute === "NDPS" && sectionOfNdpsRules.recognizedRuleIdentities[0]?.section === "21");
+check("Section NDPS Act phrasing is recognized", sectionNdpsRules.recognizedRuleIdentities[0]?.statute === "NDPS" && sectionNdpsRules.recognizedRuleIdentities[0]?.section === "21");
 check("Section parsing emits no rule identity for ambiguous bare 21", parsedBare.ruleIdentities.length === 0);
 
 const unsupportedBns = rules([{ statute: "BNS", section: "999" }], "CURRENT_BNS_BNSS");

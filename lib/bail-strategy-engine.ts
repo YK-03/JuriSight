@@ -1,5 +1,6 @@
 import type { LegalRuleOutput, Severity, CustodyDuration } from "./legal-rules";
 import type { LegalFramework } from "./legal-framework";
+import type { QuantityCategory } from "./legal-rules";
 import type { BailStrategyCourtStage } from "./section-preservation";
 import { buildSearchLink } from "./precedents";
 import {
@@ -52,7 +53,7 @@ export interface BailStrategyInput {
   age: string;
   firOrCnr: string;
   additionalContext: string;
-  ndpsQuantity?: any;
+  ndpsQuantity?: QuantityCategory;
   pmlaAmount?: number;
 }
 
