@@ -38,7 +38,8 @@ model Case {
   status               CaseStatus    @default(PENDING)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
-  isPublic             Boolean       @default(true)
+  isPublic             Boolean       @default(false)
+  shareToken           String?       @unique
   bailType             String?
   custodyStatus        String?
   previousBail         String?
@@ -111,6 +112,16 @@ model Message {
   chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
 
   @@index([chatSessionId])
+}
+
+model AiAbuseBucket {
+  key             String   @id
+  windowStartedAt DateTime
+  requestCount    Int      @default(0)
+  activeCount     Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@index([updatedAt])
 }
 
 enum CaseStatus {
