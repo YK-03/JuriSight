@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import Module from "node:module";
+import { resolve } from "node:path";
 import { buildGroqMessages, extractJsonBlock, parseBailStrategyModelOutput, validateBailStrategyModelOutput } from "../lib/groq";
 import { checkJuvenileFlag, runLegalRules } from "../lib/legal-rules";
 import { detectMaterialContradictions } from "../lib/bail-strategy-security";
 import type { BailStrategyInput } from "../lib/bail-strategy-engine";
-import { POST } from "../app/api/bail-strategy/route";
+
+let postRoute: typeof import("../app/api/bail-strategy/route")["POST"];
 
 function check(label: string, condition: boolean) {
   assert.equal(condition, true, label);
@@ -30,7 +33,7 @@ const baseBody: BailStrategyInput = {
 };
 
 async function expectBadRequest(overrides: Record<string, unknown>, label: string) {
-  const response = await POST(new Request("http://localhost/api/bail-strategy", {
+  const response = await postRoute(new Request("http://localhost/api/bail-strategy", {
     method: "POST",
     body: JSON.stringify({ ...baseBody, ...overrides }),
     headers: { "content-type": "application/json" },
@@ -39,6 +42,12 @@ async function expectBadRequest(overrides: Record<string, unknown>, label: strin
 }
 
 async function main() {
+  const originalResolve = (Module as any)._resolveFilename;
+  (Module as any)._resolveFilename = function(request: string, parent: unknown, ...rest: unknown[]) {
+    const mapped = request.startsWith("@/") ? resolve(process.cwd(), request.slice(2)) : request;
+    return originalResolve.call(this, mapped, parent, ...rest);
+  };
+  postRoute = (await import("../app/api/bail-strategy/route")).POST;
 
 check("Missing age does not trigger juvenile routing", !checkJuvenileFlag(null).isJuvenile && checkJuvenileFlag(null).note.includes("unknown"));
 check("Explicit age 17 remains juvenile", checkJuvenileFlag(17).isJuvenile);

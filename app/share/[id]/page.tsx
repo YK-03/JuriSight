@@ -33,8 +33,8 @@ export default function SharePage() {
         const data = await res.json();
         setCaseTitle(data.title || "");
 
-        if (data.analysis?.rawAnalysis) {
-          setAnalysis(data.analysis.rawAnalysis as CaseAnalysis);
+        if (data.analysis) {
+          setAnalysis(data.analysis as CaseAnalysis);
         } else {
           setError("No analysis data found.");
         }

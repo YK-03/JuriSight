@@ -32,6 +32,13 @@ import { curatedAuthorityRetriever } from "@/lib/curated-authority-retriever";
 import { ecourtsIndiaAuthorityProvider } from "@/lib/ecourtsindia-authority-provider";
 import { QUANTITY_CATEGORIES, type QuantityCategory } from "@/lib/legal-rules";
 import { detectMaterialContradictions } from "@/lib/bail-strategy-security";
+import {
+  acquireAIAbuseControl,
+  AI_LIMITS,
+  AI_REQUEST_MAX_BYTES,
+  readJsonBody,
+  RequestLimitError,
+} from "@/lib/ai-abuse-controls";
 
 export const runtime = "nodejs";
 
@@ -112,6 +119,16 @@ function normalizeBody(input: unknown): BailStrategyRequestBody | null {
     typeof candidate.age !== "string" ||
     typeof candidate.firOrCnr !== "string" ||
     typeof candidate.additionalContext !== "string"
+  ) {
+    return null;
+  }
+
+  if (
+    candidate.sections.length > 4_000 ||
+    candidate.age.length > 32 ||
+    candidate.firOrCnr.length > 256 ||
+    candidate.additionalContext.length > 12_000 ||
+    candidate.accusedTags.length > 20
   ) {
     return null;
   }
@@ -230,8 +247,11 @@ function buildGroundingContext(body: BailStrategyRequestBody): BailStrategyGroun
 export async function POST(request: Request) {
   let rawBody;
   try {
-    rawBody = await request.json();
-  } catch {
+    rawBody = await readJsonBody(request, AI_REQUEST_MAX_BYTES.bailStrategy);
+  } catch (error) {
+    if (error instanceof RequestLimitError) {
+      return NextResponse.json({ error: error.message }, { status: 413 });
+    }
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
@@ -280,6 +300,23 @@ export async function POST(request: Request) {
       chargesheetFiled,
     });
 
+    // Reserve the expensive-work slot before external authority retrieval as
+    // well as before the model call. This prevents rejected requests from
+    // consuming retrieval/provider resources.
+    let abuseControl: (() => Promise<void>);
+    try {
+      const releaseOrResponse = await acquireAIAbuseControl(request, AI_LIMITS.bailStrategy);
+      if (releaseOrResponse instanceof Response) return releaseOrResponse;
+      abuseControl = releaseOrResponse;
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "AI abuse controls are temporarily unavailable. Please try again shortly." },
+        { status: 503 },
+      );
+    }
+
+    try {
+
     const authorityQueries = buildOptimizedProgressiveBailAuthorityQueries(authorityQuery);
     const progressiveRetrieval = await retrieveVerifiedAuthoritiesProgressively(
       ecourtsIndiaAuthorityProvider,
@@ -308,7 +345,8 @@ export async function POST(request: Request) {
     try {
       const prompt = buildPrompt(body, legalRules.promptInjection, authoritativeResult, retrievedAuthorities, contradictions);
 
-      const rawText = await generateAIResponse(prompt);
+      let rawText: string;
+      rawText = await generateAIResponse(prompt);
       const modelOutput = parseBailStrategyModelOutput(rawText, buildGroundingContext(body));
       const reasoning = modelOutput.reasoning;
       const keyFactors = modelOutput.keyFactors;
@@ -360,6 +398,9 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json({ success: true, strategy: finalStrategy });
+    } finally {
+      await abuseControl();
+    }
   } catch (e: any) {
     console.error("[API ERROR]", e instanceof Error ? e.name : typeof e);
 

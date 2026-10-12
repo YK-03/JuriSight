@@ -53,8 +53,12 @@ export default function CaseAnalysisPage() {
     void fetchCase();
   }, [params.id]);
 
-  const handleShare = useCallback(() => {
-    const url = `${window.location.origin}/share/${caseId}`;
+  const handleShare = useCallback(async () => {
+    const shareResponse = await fetch(`/api/share/${caseId}`, { method: "POST" });
+    if (!shareResponse.ok) return;
+    const { shareToken } = await shareResponse.json() as { shareToken?: string };
+    if (!shareToken) return;
+    const url = `${window.location.origin}/share/${shareToken}`;
 
     if (typeof navigator.share === "function") {
       navigator.share({

@@ -2,6 +2,8 @@ import Groq from "groq-sdk";
 
 const GROQ_MODEL = "openai/gpt-oss-120b";
 const REQUEST_TIMEOUT_MS = 30000;
+const MAX_PROMPT_CHARS = 140000;
+const MAX_RESPONSE_CHARS = 24000;
 
 export type GroqPrompt = string | {
   system: string;
@@ -46,18 +48,25 @@ export async function generateAIResponse(prompt: GroqPrompt): Promise<string> {
   }
 
   const messages = buildGroqMessages(prompt);
+  if (messages.reduce((total, message) => total + message.content.length, 0) > MAX_PROMPT_CHARS) {
+    throw new Error("AI input exceeds the permitted size.");
+  }
 
   try {
     const completion = await getGroqClient().chat.completions.create({
       model: GROQ_MODEL,
       messages,
       temperature: 0.2,
+      max_tokens: 2048,
     });
 
     const text = completion.choices?.[0]?.message?.content || "";
 
     if (!text || text.trim().length === 0) {
       throw new Error(`Groq returned an empty response for model ${GROQ_MODEL}.`);
+    }
+    if (text.length > MAX_RESPONSE_CHARS) {
+      throw new Error("AI response exceeds the permitted size.");
     }
 
     return text;

@@ -1,17 +1,24 @@
 import { generateAIResponse, extractJsonBlock } from "@/lib/groq";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  acquireAIAbuseControl,
+  AI_LIMITS,
+  AI_REQUEST_MAX_BYTES,
+  readJsonBody,
+  RequestLimitError,
+} from "@/lib/ai-abuse-controls";
 
 export const runtime = "nodejs";
 
 const guestEligibilityRequestSchema = z.object({
-  crpcSection: z.string().trim().min(1),
-  offenseType: z.string().trim().min(1),
-  accusedProfile: z.string().trim().min(1),
-  priorRecord: z.string().trim().min(1),
-  cooperationLevel: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-});
+  crpcSection: z.string().trim().min(1).max(1200),
+  offenseType: z.string().trim().min(1).max(1200),
+  accusedProfile: z.string().trim().min(1).max(12000),
+  priorRecord: z.string().trim().min(1).max(12000),
+  cooperationLevel: z.string().trim().min(1).max(1200),
+  description: z.string().trim().min(1).max(12000),
+}).strict();
 
 const guestEligibilityResponseSchema = z.object({
   verdict: z.union([
@@ -20,18 +27,18 @@ const guestEligibilityResponseSchema = z.object({
     z.literal("Conditional Bail (Discretionary)"),
   ]),
   riskScore: z.number().min(0).max(100),
-  crpcSection: z.string().trim().min(1),
-  summary: z.string().trim().min(1),
+  crpcSection: z.string().trim().min(1).max(1200),
+  summary: z.string().trim().min(1).max(2000),
   riskFactors: z
     .array(
       z.object({
-        label: z.string().trim().min(1),
+        label: z.string().trim().min(1).max(300),
         severity: z.union([z.literal("HIGH"), z.literal("MEDIUM"), z.literal("LOW")]),
-      }),
+      }).strict(),
     )
     .length(2),
-  oneRecommendation: z.string().trim().min(1),
-});
+  oneRecommendation: z.string().trim().min(1).max(2000),
+}).strict();
 
 function normalizeGuestVerdict(raw: unknown): "Bailable" | "Non-Bailable" | "Conditional Bail (Discretionary)" {
   const str = String(raw || "").trim().toLowerCase();
@@ -100,16 +107,27 @@ Rules:
 export async function POST(request: Request) {
   let rawBody;
   try {
-    rawBody = await request.json();
-  } catch {
+    rawBody = await readJsonBody(request, AI_REQUEST_MAX_BYTES.guestEligibility);
+  } catch (error) {
+    if (error instanceof RequestLimitError) {
+      return NextResponse.json({ error: error.message }, { status: 413 });
+    }
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   try {
+    if (rawBody && typeof rawBody === "object" && !Array.isArray(rawBody) &&
+      Object.values(rawBody as Record<string, unknown>).some((value) => typeof value === "string" && value.length > 12_000)) {
+      return NextResponse.json({ error: "One or more fields exceed the permitted length." }, { status: 413 });
+    }
     const parsedBody = guestEligibilityRequestSchema.safeParse(rawBody);
 
     if (!parsedBody.success) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    }
+
+    if (Object.values(parsedBody.data).some((value) => value.length > 12_000)) {
+      return NextResponse.json({ error: "One or more fields exceed the permitted length." }, { status: 413 });
     }
 
     const prompt = [
@@ -123,24 +141,18 @@ export async function POST(request: Request) {
     ].join("\n");
 
     try {
-      const fullPrompt = `${systemPrompt}\n\n${prompt}\n\nReturn ONLY valid JSON. Do not include explanations, markdown, or extra text.`;
-      const rawText = await generateAIResponse(fullPrompt);
-      const parsed = extractJsonBlock(rawText) as any;
-
-      if (!parsed || typeof parsed !== "object") {
-        throw new Error("Invalid JSON structure from model");
+      const releaseOrResponse = await acquireAIAbuseControl(request, AI_LIMITS.guestEligibility);
+      if (releaseOrResponse instanceof Response) return releaseOrResponse;
+      let rawText: string;
+      try {
+        rawText = await generateAIResponse({ system: systemPrompt, user: prompt });
+      } finally {
+        await releaseOrResponse();
       }
-
-      const normalizedPayload = {
-        verdict: normalizeGuestVerdict(parsed.verdict),
-        riskScore: Math.min(100, Math.max(0, Math.round(Number(parsed.riskScore) || 50))),
-        crpcSection: String(parsed.crpcSection || parsedBody.data.crpcSection).trim() || parsedBody.data.crpcSection,
-        summary: String(parsed.summary || "").trim() || "Eligibility evaluated based on provided procedural facts.",
-        riskFactors: normalizeGuestRiskFactors(parsed.riskFactors),
-        oneRecommendation: String(parsed.oneRecommendation || parsed.recommendation || "").trim() || "Ensure strict adherence to procedural conditions and legal representation.",
-      };
-
-      const validatedResult = guestEligibilityResponseSchema.parse(normalizedPayload);
+      const validatedResult = guestEligibilityResponseSchema.parse(extractJsonBlock(rawText));
+      if (validatedResult.crpcSection !== parsedBody.data.crpcSection) {
+        throw new Error("Model changed the authoritative CrPC section");
+      }
       return NextResponse.json(validatedResult);
     } catch (error) {
       console.error("[Guest Eligibility Error]:", error);

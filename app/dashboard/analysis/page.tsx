@@ -36,9 +36,13 @@ export default function AnalysisPage() {
 
   const { analysis } = data;
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (!data.caseId) return;
-    const url = `${window.location.origin}/share/${data.caseId}`;
+    const shareResponse = await fetch(`/api/share/${data.caseId}`, { method: "POST" });
+    if (!shareResponse.ok) return;
+    const { shareToken } = await shareResponse.json() as { shareToken?: string };
+    if (!shareToken) return;
+    const url = `${window.location.origin}/share/${shareToken}`;
 
     if (typeof navigator.share === "function") {
       navigator.share({

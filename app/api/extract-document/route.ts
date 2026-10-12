@@ -11,6 +11,12 @@ import {
   extractStructuredDocument,
 } from "@/lib/document-parser";
 import { ocrScannedPdf } from "@/lib/ocr";
+import {
+  acquireAIAbuseControl,
+  AI_LIMITS,
+  AI_REQUEST_MAX_BYTES,
+  assertContentLength,
+} from "@/lib/ai-abuse-controls";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -52,6 +58,20 @@ export async function POST(req: Request) {
       { error: "Unauthorized" },
       { status: 401 },
     );
+  }
+
+  try {
+    assertContentLength(req, AI_REQUEST_MAX_BYTES.extractDocument);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Request is too large" }, { status: 413 });
+  }
+  let releaseAbuseControl: (() => void) | null = null;
+  try {
+    const releaseOrResponse = await acquireAIAbuseControl(req, AI_LIMITS.extractDocument, user.id);
+    if (releaseOrResponse instanceof Response) return releaseOrResponse;
+    releaseAbuseControl = releaseOrResponse;
+  } catch {
+    return NextResponse.json({ error: "AI abuse controls are temporarily unavailable. Please try again shortly." }, { status: 503 });
   }
 
   try {
@@ -302,6 +322,9 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof Error && /exceeds the permitted AI input size|too many AI extraction chunks/i.test(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 413 });
+    }
     console.error(
       "[Extract Document] Error:",
       error,
@@ -316,5 +339,7 @@ export async function POST(req: Request) {
       { error: message },
       { status: 500 },
     );
+  } finally {
+    if (releaseAbuseControl) await releaseAbuseControl();
   }
 }

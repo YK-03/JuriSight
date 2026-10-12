@@ -219,8 +219,12 @@ export function RecentCases({ onOpenWithHistory }: RecentCasesProps) {
     router.push(`/dashboard/analysis/${caseId}`);
   }, [router]);
 
-  const handleShareCase = useCallback((caseId: string, title?: string) => {
-    const url = `${window.location.origin}/share/${caseId}`;
+  const handleShareCase = useCallback(async (caseId: string, title?: string) => {
+    const shareResponse = await fetch(`/api/share/${caseId}`, { method: "POST" });
+    if (!shareResponse.ok) return;
+    const { shareToken } = await shareResponse.json() as { shareToken?: string };
+    if (!shareToken) return;
+    const url = `${window.location.origin}/share/${shareToken}`;
 
     if (typeof navigator.share === "function") {
       navigator.share({
