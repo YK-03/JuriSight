@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   buildChatSessions,
   capChatHistory,
@@ -15,7 +15,7 @@ import {
 } from "@/lib/chat-storage";
 import { extractDocumentFromPdf } from "@/lib/extract-document-client";
 import { Button } from "@/components/ui/button";
-import { ChatWorkspaceSidebar } from "@/components/dashboard/ChatWorkspaceSidebar";
+import { useChatWorkspace } from "@/components/dashboard/chat-workspace-context";
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -185,13 +185,21 @@ export function ChatPanel({
   const [attachedText, setAttachedText] = useState<string | null>(null);
   const [fileStatus, setFileStatus] = useState<"idle" | "extracting" | "ready" | "error">("idle");
   const [fileError, setFileError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const autoSubmittedQueryRef = useRef<string | null>(null);
+  const {
+    registerController,
+    setActiveDbSessionId: setWorkspaceSessionId,
+    peekPendingChatAction,
+  } = useChatWorkspace();
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    if (peekPendingChatAction()) {
+      return;
+    }
+
     const history = readStoredChatHistory();
     const latestSession = getLatestChatSession(history);
 
@@ -205,7 +213,7 @@ export function ChatPanel({
     setMessages([]);
     setActiveSessionId(null);
     setDbSessionId(null);
-  }, []);
+  }, [peekPendingChatAction]);
 
   useEffect(() => {
     const handleRestore = (event: Event) => {
@@ -297,7 +305,7 @@ export function ChatPanel({
     return () => window.clearTimeout(timer);
   }, [initialQuery, isOpen, loading, initialAttachedFile, initialAttachedText]);
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     const history = readStoredChatHistory();
     const nextHistory = capChatHistory([...history, createChatMessage("system", CHAT_SESSION_BREAK)]);
 
@@ -306,12 +314,13 @@ export function ChatPanel({
     setInputValue("");
     setActiveSessionId(null);
     setDbSessionId(null);
+    setWorkspaceSessionId(null);
     setSendError(null);
     autoSubmittedQueryRef.current = null;
     composerRef.current?.focus();
-  };
+  }, [setWorkspaceSessionId]);
 
-  const handleSelectConversation = async (incoming: ChatMessage[], nextDbSessionId?: string | null) => {
+  const handleSelectConversation = useCallback(async (incoming: ChatMessage[], nextDbSessionId?: string | null) => {
     setSendError(null);
     autoSubmittedQueryRef.current = null;
 
@@ -337,7 +346,7 @@ export function ChatPanel({
     setMessages(restored);
     setActiveSessionId(resolveSessionId(restored));
     setDbSessionId(nextDbSessionId ?? null);
-  };
+  }, []);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -459,6 +468,21 @@ export function ChatPanel({
     event.target.style.height = `${Math.min(event.target.scrollHeight, 160)}px`;
   };
 
+  useEffect(() => {
+    setWorkspaceSessionId(dbSessionId);
+  }, [dbSessionId, setWorkspaceSessionId]);
+
+  useEffect(() => {
+    registerController({
+      newChat: handleNewChat,
+      selectConversation: (incoming, nextDbId) => {
+        void handleSelectConversation(incoming, nextDbId);
+      },
+    });
+
+    return () => registerController(null);
+  }, [handleNewChat, handleSelectConversation, registerController]);
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -468,40 +492,14 @@ export function ChatPanel({
 
   return (
     <div
-      className={`fixed inset-0 top-16 z-40 flex bg-bg-primary ${isOpen ? "" : "hidden"}`}
+      className={`flex min-h-0 flex-1 flex-col bg-bg-primary ${isOpen ? "" : "hidden"}`}
       aria-hidden={!isOpen}
     >
-      <ChatWorkspaceSidebar
-        mobileOpen={sidebarOpen}
-        onCloseMobile={() => setSidebarOpen(false)}
-        onNewChat={handleNewChat}
-        onSelectConversation={(incoming, nextDbId) => {
-          void handleSelectConversation(incoming, nextDbId);
-        }}
-        activeDbSessionId={dbSessionId}
-      />
-
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/40 px-3 py-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 md:hidden"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open conversations"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 6h16" />
-                <path d="M4 12h16" />
-                <path d="M4 18h16" />
-              </svg>
-            </Button>
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-medium text-text-primary">Conversation</h2>
-              <p className="truncate text-xs text-text-secondary">Ask a question, add a document, then continue.</p>
-            </div>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-medium text-text-primary">Conversation</h2>
+            <p className="truncate text-xs text-text-secondary">Ask a question, add a document, then continue.</p>
           </div>
           <Button
             variant="ghost"

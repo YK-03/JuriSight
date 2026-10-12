@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   buildChatSessions,
@@ -10,6 +10,7 @@ import {
   ChatMessage,
   parseStoredChatHistory,
 } from "@/lib/chat-storage";
+import { cn } from "@/lib/utils";
 
 type ConversationItem = {
   id: string;
@@ -49,6 +50,8 @@ type ChatWorkspaceSidebarProps = {
   onNewChat: () => void;
   onSelectConversation: (messages: ChatMessage[], dbSessionId?: string | null) => void;
   activeDbSessionId: string | null;
+  variant?: "panel" | "shell";
+  collapsed?: boolean;
 };
 
 const CASE_HISTORY_STORAGE_KEY = "jurisight_case_history";
@@ -90,20 +93,31 @@ function loadLocalMatters(): MatterItem[] {
   }
 }
 
+const itemFocusClass =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary";
+
 export function ChatWorkspaceSidebar({
   mobileOpen,
   onCloseMobile,
   onNewChat,
   onSelectConversation,
   activeDbSessionId,
+  variant = "panel",
+  collapsed = false,
 }: ChatWorkspaceSidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [matters, setMatters] = useState<MatterItem[]>([]);
+  const [conversationsStatus, setConversationsStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [casesStatus, setCasesStatus] = useState<"loading" | "ready" | "error">("loading");
 
   const loadHistory = useCallback(async () => {
     let conversationLoadedFromDb = false;
     let casesLoadedFromDb = false;
+
+    setConversationsStatus((current) => (current === "ready" ? "ready" : "loading"));
+    setCasesStatus((current) => (current === "ready" ? "ready" : "loading"));
 
     try {
       const sessionsResponse = await fetch("/api/chat/sessions?limit=30", { cache: "no-store" });
@@ -120,6 +134,7 @@ export function ChatWorkspaceSidebar({
           })),
         );
         conversationLoadedFromDb = true;
+        setConversationsStatus("ready");
       }
     } catch {
       conversationLoadedFromDb = false;
@@ -128,8 +143,10 @@ export function ChatWorkspaceSidebar({
     if (!conversationLoadedFromDb) {
       try {
         setConversations(loadLocalConversations());
+        setConversationsStatus("ready");
       } catch {
         setConversations([]);
+        setConversationsStatus("error");
       }
     }
 
@@ -139,13 +156,20 @@ export function ChatWorkspaceSidebar({
         const recentCases: DbRecentCasesResponse = await casesResponse.json();
         setMatters(recentCases.map((item) => ({ id: item.id, title: item.title, source: "db" })));
         casesLoadedFromDb = true;
+        setCasesStatus("ready");
       }
     } catch {
       casesLoadedFromDb = false;
     }
 
     if (!casesLoadedFromDb) {
-      setMatters(loadLocalMatters());
+      try {
+        setMatters(loadLocalMatters());
+        setCasesStatus("ready");
+      } catch {
+        setMatters([]);
+        setCasesStatus("error");
+      }
     }
   }, []);
 
@@ -184,6 +208,135 @@ export function ChatWorkspaceSidebar({
     }
   };
 
+  const history = (
+    <>
+      <div className={cn("px-3 py-3", collapsed && "px-2")}>
+        <Button
+          type="button"
+          variant="secondary"
+          className={cn("w-full", collapsed ? "justify-center px-0" : "justify-start")}
+          onClick={() => {
+            onNewChat();
+            onCloseMobile();
+          }}
+          aria-label="New chat"
+          title="New chat"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          {collapsed ? null : <span>New chat</span>}
+        </Button>
+      </div>
+
+      {collapsed ? null : (
+        <div className="flex-1 overflow-y-auto px-2 pb-6">
+          <p className="px-2 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
+            Recent chats
+          </p>
+          {conversationsStatus === "loading" ? (
+            <p className="px-2 pb-4 text-xs leading-5 text-text-secondary">Loading conversations...</p>
+          ) : conversationsStatus === "error" ? (
+            <div className="px-2 pb-4">
+              <p className="text-xs leading-5 text-text-secondary">Could not load conversations.</p>
+              <Button type="button" variant="ghost" size="sm" className="mt-1 h-auto px-0" onClick={() => void loadHistory()}>
+                Retry
+              </Button>
+            </div>
+          ) : conversations.length === 0 ? (
+            <p className="px-2 pb-4 text-xs leading-5 text-text-secondary">No conversations yet.</p>
+          ) : (
+            <ul className="mb-6 space-y-0.5">
+              {conversations.map((item) => {
+                const isActive = item.source === "db" && item.sessionId === activeDbSessionId;
+                return (
+                  <li key={`${item.source}-${item.sessionId}`} className="group flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectConversation(item.messages, item.source === "db" ? item.sessionId : null);
+                        onCloseMobile();
+                      }}
+                      title={item.title}
+                      className={cn(
+                        "min-w-0 flex-1 rounded-lg px-2 py-2 text-left transition",
+                        itemFocusClass,
+                        isActive ? "bg-bg-secondary text-text-primary" : "text-text-secondary hover:bg-bg-secondary/70 hover:text-text-primary",
+                      )}
+                    >
+                      <span className="block truncate text-sm">{truncate(item.title)}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-text-secondary">{truncate(item.preview, 48)}</span>
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                      aria-label={`Delete ${item.title}`}
+                      onClick={() => void handleDeleteConversation(item.sessionId, item.source)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
+            Recent cases
+          </p>
+          {casesStatus === "loading" ? (
+            <p className="px-2 text-xs leading-5 text-text-secondary">Loading cases...</p>
+          ) : casesStatus === "error" ? (
+            <div className="px-2">
+              <p className="text-xs leading-5 text-text-secondary">Could not load cases.</p>
+              <Button type="button" variant="ghost" size="sm" className="mt-1 h-auto px-0" onClick={() => void loadHistory()}>
+                Retry
+              </Button>
+            </div>
+          ) : matters.length === 0 ? (
+            <p className="px-2 text-xs leading-5 text-text-secondary">No saved cases yet. Use Analyze Case for structured intake.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {matters.map((item) => {
+                const isActive = pathname === `/dashboard/analysis/${item.id}`;
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      title={item.title}
+                      onClick={() => {
+                        router.push(`/dashboard/analysis/${item.id}`);
+                        onCloseMobile();
+                      }}
+                      className={cn(
+                        "w-full truncate rounded-lg px-2 py-2 text-left text-sm transition",
+                        itemFocusClass,
+                        isActive ? "bg-bg-secondary text-text-primary" : "text-text-secondary hover:bg-bg-secondary/70 hover:text-text-primary",
+                      )}
+                    >
+                      {item.title}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  if (variant === "shell") {
+    return <div className="flex min-h-0 flex-1 flex-col">{history}</div>;
+  }
+
   const asideClassName = `flex h-full w-[17.5rem] shrink-0 flex-col border-r border-border bg-bg-secondary/40 ${
     mobileOpen ? "fixed inset-y-0 left-0 z-50 md:static" : "hidden md:flex"
   }`;
@@ -215,90 +368,7 @@ export function ChatWorkspaceSidebar({
             </svg>
           </Button>
         </div>
-
-        <div className="px-3 py-3">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full justify-start"
-            onClick={() => {
-              onNewChat();
-              onCloseMobile();
-            }}
-          >
-            New chat
-          </Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-2 pb-6">
-          <p className="px-2 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
-            Recent chats
-          </p>
-          {conversations.length === 0 ? (
-            <p className="px-2 pb-4 text-xs leading-5 text-text-secondary">No conversations yet.</p>
-          ) : (
-            <ul className="mb-6 space-y-0.5">
-              {conversations.map((item) => {
-                const isActive = item.source === "db" && item.sessionId === activeDbSessionId;
-                return (
-                  <li key={`${item.source}-${item.sessionId}`} className="group flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSelectConversation(item.messages, item.source === "db" ? item.sessionId : null);
-                        onCloseMobile();
-                      }}
-                      className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-left transition ${
-                        isActive ? "bg-bg-secondary text-text-primary" : "text-text-secondary hover:bg-bg-secondary/70 hover:text-text-primary"
-                      }`}
-                    >
-                      <span className="block truncate text-sm">{truncate(item.title)}</span>
-                      <span className="mt-0.5 block truncate text-[11px] text-text-secondary">{truncate(item.preview, 48)}</span>
-                    </button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
-                      aria-label={`Delete ${item.title}`}
-                      onClick={() => void handleDeleteConversation(item.sessionId, item.source)}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4h8v2" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                      </svg>
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
-            Matters
-          </p>
-          {matters.length === 0 ? (
-            <p className="px-2 text-xs leading-5 text-text-secondary">No saved matters yet. Use Analyze a matter for structured intake.</p>
-          ) : (
-            <ul className="space-y-0.5">
-              {matters.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      router.push(`/dashboard/analysis/${item.id}`);
-                      onCloseMobile();
-                    }}
-                    className="w-full truncate rounded-lg px-2 py-2 text-left text-sm text-text-secondary transition hover:bg-bg-secondary/70 hover:text-text-primary"
-                  >
-                    {item.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {history}
       </aside>
     </>
   );

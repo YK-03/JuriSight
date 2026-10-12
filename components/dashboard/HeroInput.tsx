@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef, useImperativeHandle, useRef, useState, KeyboardEvent } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { extractDocumentFromPdf } from "@/lib/extract-document-client";
 
@@ -11,13 +11,15 @@ export type HeroInputHandle = {
 
 interface HeroInputProps {
   onSubmit?: (query: string, attachedFile?: File | null, attachedText?: string | null) => void;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }
 
 export const HeroInput = forwardRef<HeroInputHandle, HeroInputProps>(function HeroInput(
-  { onSubmit },
+  { onSubmit, value, onValueChange },
   ref,
 ) {
-  const [description, setDescription] = useState("");
+  const [internalDescription, setInternalDescription] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [attachedText, setAttachedText] = useState<string | null>(null);
   const [fileStatus, setFileStatus] = useState<"idle" | "extracting" | "ready" | "error">("idle");
@@ -25,6 +27,23 @@ export const HeroInput = forwardRef<HeroInputHandle, HeroInputProps>(function He
   const [emptyError, setEmptyError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const description = value ?? internalDescription;
+
+  const setDescription = (nextValue: string) => {
+    onValueChange?.(nextValue);
+    if (value === undefined) {
+      setInternalDescription(nextValue);
+    }
+  };
+
+  useEffect(() => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+  }, [description]);
 
   useImperativeHandle(ref, () => ({
     openFilePicker: () => fileInputRef.current?.click(),

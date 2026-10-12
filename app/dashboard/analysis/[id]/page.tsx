@@ -81,7 +81,7 @@ export default function CaseAnalysisPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
+      <div className="flex min-h-full w-full flex-1 items-center justify-center bg-bg-primary text-text-primary py-16">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
           <p className="text-sm text-text-secondary">Loading analysis…</p>
@@ -92,7 +92,7 @@ export default function CaseAnalysisPage() {
 
   if (error || !analysis) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-bg-primary text-text-primary">
+      <div className="flex min-h-full w-full flex-1 items-center justify-center bg-bg-primary text-text-primary">
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-sm text-text-secondary">{error || "Analysis not found."}</p>
           <Button
@@ -120,7 +120,7 @@ export default function CaseAnalysisPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-bg-primary text-text-primary min-h-screen">
+    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-bg-primary text-text-primary min-h-full w-full min-w-0">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard">

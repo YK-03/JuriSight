@@ -76,7 +76,7 @@ export default function AnalysisPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-bg-primary text-text-primary min-h-screen">
+    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-bg-primary text-text-primary min-h-full w-full min-w-0">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard">
